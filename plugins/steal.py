@@ -1,0 +1,78 @@
+from random import randint
+
+from sqlalchemy import Table, Column, String
+from sqlalchemy.exc import IntegrityError
+
+from cloudbot import hook
+from cloudbot.util import botvars
+
+table = Table(
+    'stolen',
+    botvars.metadata,
+    Column('word', String, primary_key=True)
+)
+
+
+def get_random(db):
+    """
+    :type db: sqlalchemy.orm.session.Session
+    """
+    count = db.execute(table.select().count()).fetchone()[0]
+    offset = randint(0, int(count - 1))
+    row = db.execute(table.select().limit(1).offset(offset)).fetchone()
+    if row:
+        return row[0]
+    else:
+        return None
+
+
+def list_steals(db):
+    """
+    :type db: sqlalchemy.orm.session.Session
+    """
+    row = db.execute(table.select()).fetchall()
+    return row
+
+
+def add_word(db, stolen):
+    """
+    :type db: sqlalchemy.orm.session.Session
+    """
+    try:
+        db.execute(table.insert().values(word=stolen))
+        db.commit()
+    except IntegrityError:
+        pass  # for lack of a better thing to do
+
+
+@hook.command("steal", "stealit", autohelp=False)
+def stealit(inp, db, nick, action):
+    """steal [username [object]] - Steals an object from a user, or a random previously stolen object."""
+    args = inp.strip().split()
+    if not args:
+        steal_from = nick
+        to_steal = get_random(db)
+        action("steals {}'s {}".format(steal_from, to_steal))
+    elif len(args) < 2:
+        steal_from = args[0]
+        to_steal = get_random(db)
+        action("steals {}'s {}".format(steal_from, to_steal))
+    else:
+        steal_from = args[0]
+        to_steal = " ".join(args[1:])
+        action("steals {}'s {}".format(steal_from, to_steal))
+        add_word(db, to_steal)
+
+
+@hook.command(autohelp=False, permissions=["adminonly"])
+def liststolen(db, reply):
+    text = False
+    for word in list_steals(db):
+        if not text:
+            text = word[0]
+        else:
+            text += ", {}".format(word[0])
+        if len(text) > 400:
+            reply(text.rsplit(', ', 1)[0])
+            text = word[0]
+    return text
