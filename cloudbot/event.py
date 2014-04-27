@@ -248,7 +248,7 @@ class Event:
         if target == self.nick:
             self.conn.message(target, message)
         else:
-            self.conn.message(target, "({}) {}".format(self.nick, message))
+            self.conn.message(target, "{}, {}".format(self.nick, message))
 
     def action(self, message, target=None):
         """sends an action to the current channel/user or a specific channel/user
