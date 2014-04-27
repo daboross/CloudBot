@@ -11,7 +11,7 @@ from cloudbot.util import botvars, formatting, web
 
 re_lineends = re.compile(r'[\r\n]*')
 
-FACTOID_CHAR = "?"  # TODO: config
+FACTOID_CHAR = "^"  # TODO: config
 
 # some simple "shortcodes" for formatting purposes
 shortcodes = {
