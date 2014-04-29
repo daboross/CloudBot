@@ -15,7 +15,7 @@ table = Table(
 # Default value.
 # If True, all channels without a setting will have regex enabled
 # If False, all channels without a setting will have regex disabled
-default_enabled = True
+default_enabled = False
 
 
 @hook.onload()
