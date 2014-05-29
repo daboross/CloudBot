@@ -1,29 +1,20 @@
 import asyncio
+from asyncio.queues import Queue
 import re
-
-irc_prefix_re = re.compile(r":([^ ]*) ([^ ]*) (.*)")
-irc_noprefix_re = re.compile(r"([^ ]*) (.*)")
-irc_netmask_re = re.compile(r"([^!@]*)!([^@]*)@(.*)")
-irc_param_re = re.compile(r"(?:^|(?<= ))(:.*|[^ ]+)")
 
 
 class IRCProtocol(asyncio.Protocol):
-    def __init__(self, ircconn, charset='utf8'):
+    def __init__(self, loop, logger, charset='utf8'):
         """
         :type ircconn: IRCConnection
         """
-        self.loop = ircconn.loop
-        self.logger = ircconn.logger
-        self.readable_name = ircconn.readable_name
-        self.describe_server = lambda: ircconn.describe_server()
-        self.botconn = ircconn.botconn
-        self.output_queue = ircconn.output_queue
-        self.message_queue = ircconn.message_queue
-
+        self.message_queue = Queue(loop=loop)
         self.charset = charset
+        self.logger = logger
 
         # input buffer
         self._input_buffer = b""
+
         # connected
         self._connected = False
 
@@ -33,7 +24,6 @@ class IRCProtocol(asyncio.Protocol):
     def connection_made(self, transport):
         self.transport = transport
         self._connected = True
-        asyncio.async(self.send_loop(), loop=self.loop)
 
     def connection_lost(self, exc):
         self._connected = False
@@ -41,25 +31,22 @@ class IRCProtocol(asyncio.Protocol):
             # we've been closed intentionally, so don't reconnect
             return
         self.logger.exception("[{}] Connection lost.".format(self.readable_name))
-        asyncio.async(self.botconn.connect(), loop=self.loop)
+        #asyncio.async(self.botconn.connect(), loop=self.loop)
 
     def eof_received(self):
         self._connected = False
         self.logger.info("[{}] EOF Received, reconnecting.".format(self.readable_name))
-        asyncio.async(self.botconn.connect(), loop=self.loop)
+        #asyncio.async(self.botconn.connect(), loop=self.loop)
         return True
 
-    @asyncio.coroutine
-    def send_loop(self):
-        while self._connected:
-            to_send = yield from self.output_queue.get()
-            line = to_send.splitlines()[0][:500] + "\r\n"
-            data = line.encode("utf-8", "replace")
-            self.transport.write(data)
+    def send_message(self, command, *args):
+        message = IRCMessage(command, *args)
+        self.logger.debug("sent: %r", message)
+        self.transport.write(message.render().encode(self.charset) + b'\r\n')
 
     def handle_message(self, message):
         if message.command == 'PING':
-            self.output_queue.put_nowait("PONG :" + message.args[-1])
+            self.send_message('PONG', message.args[-1])
 
         elif message.command == 'RPL_WELCOME':
             # 001, first thing sent after registration
