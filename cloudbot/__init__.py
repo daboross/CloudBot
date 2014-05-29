@@ -3,7 +3,8 @@ import logging.config
 import logging
 import os
 
-from .core import bot, connection, config, permissions, pluginmanager, events
+from .core.irc import connection, protocol
+from .core import bot, config, permissions, pluginmanager, events
 from .util import botvars, bucket, formatting, hook, http, pyexec, textgen, timeformat, timesince, urlnorm, web
 
 __all__ = ["core", "util", "bot", "connection", "config", "permissions", "pluginmanager", "events", "botvars", "bucket",

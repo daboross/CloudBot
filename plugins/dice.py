@@ -1,8 +1,6 @@
-# Written by Scaevolus, updated by Lukeroge
-
-
 import re
 import random
+import asyncio
 
 from cloudbot import hook
 
@@ -12,6 +10,7 @@ sign_re = re.compile(r'[+-]?(?:\d*d)?(?:\d+|F)', re.I)
 split_re = re.compile(r'([\d+-]*)d?(F|\d*)', re.I)
 
 
+@asyncio.coroutine
 def n_rolls(count, n):
     """roll an n-sided die count times
     :type count: int | str
@@ -33,8 +32,8 @@ def n_rolls(count, n):
                                                (.5 * (1 + n)) ** 2) * count) ** .5))]
 
 
-#@hook.regex(valid_diceroll, re.I)
-@hook.command(["roll", "dice"])
+
+@plugin.command("roll", "dice")
 def dice(text, notice):
     """dice <dice roll> -- Simulates dice rolls. Example: 'dice 2d20-d5+4 roll 2': D20s, subtract 1D5, add 4
     :type text: str
@@ -66,7 +65,8 @@ def dice(text, notice):
         count, side = split_re.match(roll).groups()
         count = int(count) if count not in " +-" else 1
         if side.upper() == "F":  # fudge dice are basically 1d3-2
-            for fudge in n_rolls(count, "F"):
+            rolls = yield from n_rolls(count, "F")
+            for fudge in rolls:
                 if fudge == 1:
                     rolls.append("\x033+\x0F")
                 elif fudge == -1:
@@ -80,11 +80,11 @@ def dice(text, notice):
             side = int(side)
             try:
                 if count > 0:
-                    d = n_rolls(count, side)
+                    d = yield from n_rolls(count, side)
                     rolls += list(map(str, d))
                     total += sum(d)
                 else:
-                    d = n_rolls(-count, side)
+                    d = yield from n_rolls(-count, side)
                     rolls += [str(-x) for x in d]
                     total -= sum(d)
             except OverflowError:

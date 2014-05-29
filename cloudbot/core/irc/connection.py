@@ -5,13 +5,9 @@ import ssl
 from ssl import SSLContext
 
 from cloudbot.core.permissions import PermissionManager
+from cloudbot.core.irc.protocol import IRCProtocol
 
 from cloudbot.core.events import BaseEvent
-
-irc_prefix_re = re.compile(r":([^ ]*) ([^ ]*) (.*)")
-irc_noprefix_re = re.compile(r"([^ ]*) (.*)")
-irc_netmask_re = re.compile(r"([^!@]*)!([^@]*)@(.*)")
-irc_param_re = re.compile(r"(?:^|(?<= ))(:.*|[^ ]+)")
 
 
 class BotConnection:
@@ -245,116 +241,3 @@ class IRCConnection:
             return
         self._transport.close()
         self._connected = False
-
-
-class IRCProtocol(asyncio.Protocol):
-    def __init__(self, ircconn):
-        """
-        :type ircconn: IRCConnection
-        """
-        self.loop = ircconn.loop
-        self.logger = ircconn.logger
-        self.readable_name = ircconn.readable_name
-        self.describe_server = lambda: ircconn.describe_server()
-        self.botconn = ircconn.botconn
-        self.output_queue = ircconn.output_queue
-        self.message_queue = ircconn.message_queue
-        # input buffer
-        self._input_buffer = b""
-        # connected
-        self._connected = False
-
-        # transport
-        self.transport = None
-
-    def connection_made(self, transport):
-        self.transport = transport
-        self._connected = True
-        asyncio.async(self.send_loop(), loop=self.loop)
-
-    def connection_lost(self, exc):
-        self._connected = False
-        if exc is None:
-            # we've been closed intentionally, so don't reconnect
-            return
-        self.logger.exception("[{}] Connection lost.".format(self.readable_name))
-        asyncio.async(self.botconn.connect(), loop=self.loop)
-
-    def eof_received(self):
-        self._connected = False
-        self.logger.info("[{}] EOF Received, reconnecting.".format(self.readable_name))
-        asyncio.async(self.botconn.connect(), loop=self.loop)
-        return True
-
-    @asyncio.coroutine
-    def send_loop(self):
-        while self._connected:
-            to_send = yield from self.output_queue.get()
-            line = to_send.splitlines()[0][:500] + "\r\n"
-            data = line.encode("utf-8", "replace")
-            self.transport.write(data)
-
-    def data_received(self, data):
-        self._input_buffer += data
-        while b"\r\n" in self._input_buffer:
-            line, self._input_buffer = self._input_buffer.split(b"\r\n", 1)
-            line = line.decode()
-
-            # parse the line into a message
-            if line.startswith(":"):
-                prefix_line_match = irc_prefix_re.match(line)
-                if prefix_line_match is None:
-                    self.logger.critical("[{}] Received invalid IRC line '{}' from {}".format(
-                        self.readable_name, line, self.describe_server()
-                    ))
-                    continue
-
-                netmask_prefix, command, params = prefix_line_match.groups()
-                prefix = ":" + netmask_prefix  # TODO: Do we need to know this?
-                netmask_match = irc_netmask_re.match(netmask_prefix)
-                if netmask_match is None:
-                    # This isn't in the format of a netmask
-                    nick = netmask_prefix
-                    user = None
-                    host = None
-                    mask = netmask_prefix
-                else:
-                    nick = netmask_match.group(1)
-                    user = netmask_match.group(2)
-                    host = netmask_match.group(3)
-                    mask = netmask_prefix
-            else:
-                prefix = None
-                noprefix_line_match = irc_noprefix_re.match(line)
-                if noprefix_line_match is None:
-                    self.logger.critical("[{}] Received invalid IRC line '{}' from {}".format(
-                        self.readable_name, line, self.describe_server()
-                    ))
-                    continue
-                command = noprefix_line_match.group(1)
-                params = noprefix_line_match.group(2)
-                nick = None
-                user = None
-                host = None
-                mask = None
-
-            param_list = irc_param_re.findall(params)
-            if param_list:
-                # TODO: What the heck?
-                if param_list[-1].startswith(":"):
-                    param_list[-1] = param_list[-1][1:]
-                last_param = param_list[-1]
-            else:
-                last_param = None
-            # Set up parsed message
-            # TODO: What do you actually want to send here? Are prefix and params really necessary?
-            event = BaseEvent(conn=self.botconn, irc_raw=line, irc_prefix=prefix, irc_command=command,
-                              irc_paramlist=param_list, irc_message=last_param, nick=nick, user=user, host=host,
-                              mask=mask)
-            # we should also remember to ping the server if they ping us
-            if command == "PING":
-                self.output_queue.put_nowait("PONG :" + last_param)
-
-            # Put the message into the queue to be handled
-            # TODO: Do we want to directly call the handling method here?
-            self.message_queue.put_nowait(event)

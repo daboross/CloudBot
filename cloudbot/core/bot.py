@@ -10,12 +10,13 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.schema import MetaData
 
 import cloudbot
-from cloudbot.core.connection import BotConnection
+from cloudbot.core.irc.connection import BotConnection
 from cloudbot.core.config import Config
 from cloudbot.core.reloader import PluginReloader
 from cloudbot.core.pluginmanager import PluginManager
 from cloudbot.core.events import BaseEvent, CommandEvent, RegexEvent
 from cloudbot.util import botvars, formatting
+
 
 logger_initialized = False
 
