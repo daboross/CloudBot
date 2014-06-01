@@ -144,8 +144,10 @@ class Connection:
         handler = getattr(self, '_handle_' + message.command, None)
         if handler:
             handler(message)
+        else:
+            this._handle_generic(message)
 
-    def _handle_PRIVMSG(self, message):
+    def _handle_generic(self, message):
         event = BaseEvent(conn=self.botconn, irc_raw=line, irc_prefix=prefix, irc_command=command,
                               irc_paramlist=param_list, irc_message=last_param, nick=nick, user=user, host=host,
                               mask=mask)

@@ -14,7 +14,7 @@ def plpaste(text, bot):
         with open(file_path) as f:
             return web.haste(f.read(), ext='py')
     elif text + ".py" in listdir('plugins/'):
-        with open('plugins/{}.py'.format(text)) as f:
+        with open('plugins/w{}.py'.format(text)) as f:
             return web.haste(f.read(), ext='py')
     else:
         return "Could not find specified plugin."
