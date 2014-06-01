@@ -145,7 +145,7 @@ class Connection:
         if handler:
             handler(message)
         else:
-            this._handle_generic(message)
+            self._handle_generic(message)
 
     def _handle_generic(self, message):
         event = BaseEvent(conn=self.botconn, irc_raw=line, irc_prefix=prefix, irc_command=command,
