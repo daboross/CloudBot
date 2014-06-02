@@ -6,8 +6,8 @@ import requests
 
 # Constants
 
-DEFAULT_SHORTENER = 'is.gd'
-DEFAULT_PASTEBIN = 'hastebin'
+DEFAULT_SHORTENER = 'qx.lc'
+DEFAULT_PASTEBIN = 'qx.lc'
 
 HASTEBIN_SERVER = 'http://hastebin.com'
 
@@ -195,3 +195,31 @@ class Hastebin(Pastebin):
             return '{}/{}.{}'.format(HASTEBIN_SERVER, j['key'], ext)
         else:
             raise ServiceError(j['message'], r)
+
+
+@_shortener("qx.lc")
+class QxlcLinks(Shortener):
+    def shorten(self, url, custom=None):
+        # qx.lc doesn't support custom urls, so ignore custom
+        server = "http://qx.lc"
+        r = requests.post("{}/api/shorten".format(server), data={"url": url})
+
+        if r.status_code != 200:
+            raise ServiceError(r.text, r)
+        else:
+            return r.text
+
+
+@_pastebin("qx.lc")
+class QxlcPaste(Pastebin):
+    def paste(self, text, ext):
+        r = requests.post("http://qx.lc/api/paste", data={"paste": text})
+        url = r.text
+
+        if r.status_code != 200:
+            return r.text  # this is the error text
+        else:
+            if ext is not None:
+                return "{}.{}".format(url, ext)
+            else:
+                return url
