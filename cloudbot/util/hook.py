@@ -78,7 +78,7 @@ class _RegexHook(_Hook):
         _Hook.__init__(self, function, "regex")
         self.regexes = []
 
-    def add_hook(self, regex_param, regex_flags, kwargs):
+    def add_hook(self, regex_param, kwargs):
         """
         :type regex_param: Iterable[str | re.__Regex] | str | re.__Regex
         :type kwargs: dict[str, unknown]
@@ -87,7 +87,7 @@ class _RegexHook(_Hook):
         # add all regex_parameters to valid regexes
         if isinstance(regex_param, str):
             # if the parameter is a string, compile and add
-            self.regexes.append(re.compile(regex_param, regex_flags))
+            self.regexes.append(re.compile(regex_param))
         elif hasattr(regex_param, "search"):
             # if the parameter is an re.__Regex, just add it
             # we only use regex.search anyways, so this is a good determiner
@@ -97,7 +97,7 @@ class _RegexHook(_Hook):
             # if the parameter is a list, add each one
             for re_to_match in regex_param:
                 if isinstance(re_to_match, str):
-                    re_to_match = re.compile(re_to_match, regex_flags)
+                    re_to_match = re.compile(re_to_match)
                 else:
                     # make sure that the param is either a compiled regex, or has a search attribute.
                     assert hasattr(regex_param, "search")
@@ -116,18 +116,18 @@ class _RawHook(_Hook):
         _Hook.__init__(self, function, "irc_raw")
         self.triggers = set()
 
-    def add_hook(self, event_param, kwargs):
+    def add_hook(self, trigger_param, kwargs):
         """
-        :type event_param: list[str] | str
+        :type trigger_param: list[str] | str
         :type kwargs: dict[str, unknown]
         """
         self._add_hook(kwargs)
 
-        if isinstance(event_param, str):
-            self.triggers.add(event_param)
+        if isinstance(trigger_param, str):
+            self.triggers.add(trigger_param)
         else:
-            assert isinstance(event_param, list)
-            self.triggers.update(event_param)
+            assert isinstance(trigger_param, list)
+            self.triggers.update(trigger_param)
 
 
 def _add_hook(func, hook):
@@ -145,67 +145,12 @@ def _get_hook(func, hook_type):
     return None
 
 
-def _process_options(func, kwargs):
-    if not hasattr(func, "_cloudbot_hook"):
-        func._cloudbot_hook = {}
-
-    if not "options" in func._cloudbot_hook:
-        func._cloudbot_hook["options"] = {}
-
-    options = func._cloudbot_hook["options"]
-    if "threaded" in kwargs:
-        options["threaded"] = kwargs.pop("threaded")
-    if "async" in kwargs:
-        options["threaded"] = not kwargs.pop("async")
-
-
-def async(param=None):
-    """External async decorator. Can be used directly as a decorator, or with args to return a decorator.
-    :type param: function
-    """
-
-    def _async_hook(func):
-        if not hasattr(func, "_cloudbot_hook"):
-            func._cloudbot_hook = {}
-        if not "options" in func._cloudbot_hook:
-            func._cloudbot_hook["options"] = {}
-        options = func._cloudbot_hook["options"]
-        options["threaded"] = False
-        return func
-
-    if callable(param):  # this decorator is being used directly
-        return _async_hook(param)
-    else:  # this decorator is being used indirectly, so return a decorator function
-        return lambda func: _async_hook(func)
-
-
-def threaded(param=None):
-    """External async decorator. Can be used directly as a decorator, or with args to return a decorator.
-    :type param: function
-    """
-
-    def _async_hook(func):
-        if not hasattr(func, "_cloudbot_hook"):
-            func._cloudbot_hook = {}
-        if not "options" in func._cloudbot_hook:
-            func._cloudbot_hook["options"] = {}
-        options = func._cloudbot_hook["options"]
-        options["threaded"] = True
-        return func
-
-    if callable(param):  # this decorator is being used directly
-        return _async_hook(param)
-    else:  # this decorator is being used indirectly, so return a decorator function
-        return lambda func: _async_hook(func)
-
-
 def command(param=None, **kwargs):
     """External command decorator. Can be used directly as a decorator, or with args to return a decorator.
     :type param: str | list[str] | function
     """
 
     def _command_hook(func, alias_param=None):
-        _process_options(func, kwargs)
         hook = _get_hook(func, "command")
         if hook is None:
             hook = _CommandHook(func)
@@ -220,13 +165,12 @@ def command(param=None, **kwargs):
         return lambda func: _command_hook(func, alias_param=param)
 
 
-def event(triggers_param, **kwargs):
-    """External event decorator. Must be used as a function to return a decorator
+def irc_raw(triggers_param, **kwargs):
+    """External raw decorator. Must be used as a function to return a decorator
     :type triggers_param: str | list[str]
     """
 
     def _raw_hook(func):
-        _process_options(func, kwargs)
         hook = _get_hook(func, "irc_raw")
         if hook is None:
             hook = _RawHook(func)
@@ -241,20 +185,19 @@ def event(triggers_param, **kwargs):
         return lambda func: _raw_hook(func)
 
 
-def regex(regex_param, flags=0, **kwargs):
+def regex(regex_param, **kwargs):
     """External regex decorator. Must be used as a function to return a decorator.
     :type regex_param: str | re.__Regex | list[str | re.__Regex]
     :type flags: int
     """
 
     def _regex_hook(func):
-        _process_options(func, kwargs)
         hook = _get_hook(func, "regex")
         if hook is None:
             hook = _RegexHook(func)
-            _add_hook(func, _RegexHook(func))
+            _add_hook(func, hook)
 
-        hook.add_hook(regex_param, flags, kwargs)
+        hook.add_hook(regex_param, kwargs)
         return func
 
     if callable(regex_param):  # this decorator is being used directly, which isn't good
@@ -269,7 +212,6 @@ def sieve(param=None, **kwargs):
     """
 
     def _sieve_hook(func):
-        _process_options(func, kwargs)
         assert len(inspect.getargspec(func).args) == 3, \
             "Sieve plugin has incorrect argument count. Needs params: bot, input, plugin"
 
@@ -293,7 +235,6 @@ def onload(param=None, **kwargs):
     """
 
     def _onload_hook(func):
-        _process_options(func, kwargs)
         hook = _get_hook(func, "onload")
         if hook is None:
             hook = _Hook(func, "onload")

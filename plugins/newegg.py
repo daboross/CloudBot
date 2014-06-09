@@ -4,6 +4,7 @@ import re
 from cloudbot import hook, http, formatting, web
 
 
+
 ## CONSTANTS
 
 ITEM_URL = "http://www.newegg.com/Product/Product.aspx?Item={}"
@@ -11,7 +12,7 @@ ITEM_URL = "http://www.newegg.com/Product/Product.aspx?Item={}"
 API_PRODUCT = "http://www.ows.newegg.com/Products.egg/{}/ProductDetails"
 API_SEARCH = "http://www.ows.newegg.com/Search.egg/Advanced"
 
-NEWEGG_RE = (r"(?:(?:www.newegg.com|newegg.com)/Product/Product\.aspx\?Item=)([-_a-zA-Z0-9]+)", re.I)
+NEWEGG_RE = re.compile(r"(?:(?:www.newegg.com|newegg.com)/Product/Product\.aspx\?Item=)([-_a-zA-Z0-9]+)", re.I)
 
 
 ## OTHER FUNCTIONS
@@ -53,7 +54,7 @@ def format_item(item, show_url=True):
 
     if show_url:
         # create the item URL and shorten it
-        url = web.try_isgd(ITEM_URL.format(item["NeweggItemNumber"]))
+        url = web.try_shorten(ITEM_URL.format(item["NeweggItemNumber"]))
         return "\x02{}\x02 ({}) - {} - {} - {}".format(title, price, rating,
                                                        tag_text, url)
     else:
@@ -63,16 +64,16 @@ def format_item(item, show_url=True):
 
 ## HOOK FUNCTIONS
 
-@hook.regex(*NEWEGG_RE)
+@hook.regex(NEWEGG_RE)
 def newegg_url(match):
     item_id = match.group(1)
     item = http.get_json(API_PRODUCT.format(item_id))
     return format_item(item, show_url=False)
 
 
-@hook.command
+@hook.command()
 def newegg(text):
-    """newegg <item name> -- Searches newegg.com for <item name>"""
+    """newegg <item name> - searches newegg.com for <item name>"""
 
     # form the search request
     request = {

@@ -4,9 +4,9 @@ from cloudbot import hook, http, web
 user_url = "http://osrc.dfm.io/{}"
 
 
-@hook.command
+@hook.command()
 def osrc(text):
-    """osrc <github user> -- Gets an Open Source Report Card for <github user>"""
+    """<github user> - gets an Open Source Report Card for <github user> from osrc.dfm.io"""
 
     user_nick = text.strip()
     url = user_url.format(user_nick)
@@ -22,6 +22,6 @@ def osrc(text):
     # string to remove the trailing full stop.
     report = " ".join(report.split())[:-1]
 
-    short_url = web.try_isgd(url)
+    short_url = web.try_shorten(url)
 
     return "{} - {}".format(report, short_url)

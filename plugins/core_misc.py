@@ -7,7 +7,8 @@ socket.setdefaulttimeout(10)
 
 
 # Auto-join on Invite (Configurable, defaults to True)
-@hook.event('INVITE')
+@asyncio.coroutine
+@hook.irc_raw('INVITE')
 def invite(paramlist, conn):
     """
     :type paramlist: list[str]
@@ -19,7 +20,8 @@ def invite(paramlist, conn):
 
 
 # Identify to NickServ (or other service)
-@hook.event('004', threaded=False)
+@asyncio.coroutine
+@hook.irc_raw('004')
 def onjoin(conn, bot):
     """
     :type conn: cloudbot.core.connection.BotConnection
@@ -58,7 +60,8 @@ def onjoin(conn, bot):
     bot.logger.info("ONJOIN hook completed. Bot ready.")
 
 
-@hook.event('004', threaded=False)
+@asyncio.coroutine
+@hook.irc_raw('004')
 def keep_alive(conn):
     """
     :type conn: core.irc.BotConnection

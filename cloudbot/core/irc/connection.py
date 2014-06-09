@@ -1,12 +1,10 @@
 from _ssl import PROTOCOL_SSLv23
 import asyncio
-import re
 import ssl
 from ssl import SSLContext
 
 from cloudbot.core.permissions import PermissionManager
 from cloudbot.core.irc.protocol import IRCProtocol
-
 from cloudbot.core.events import BaseEvent
 
 
@@ -23,12 +21,9 @@ class Connection:
     :type nick: str
     :type vars: dict
     :type history: dict[str, list[tuple]]
-    :type message_queue: queue.Queue
-    :type input_queue: queue.Queue
-    :type output_queue: queue.Queue
-    :type connection: IRCConnection
     :type permissions: PermissionManager
     :type connected: bool
+    :type protocol: cloudbot.core.irc.protocol.IRCProtocol
     """
 
     def __init__(self, bot, name, server, nick, port=6667, use_ssl=False, logger=None, channels=None, config=None,
@@ -70,11 +65,6 @@ class Connection:
         self.vars = {}
         self.history = {}
 
-        self.message_queue = bot.queued_events  # global parsed message queue, for parsed received messages
-
-        self.input_queue = asyncio.Queue(loop=self.loop)
-        self.output_queue = asyncio.Queue(loop=self.loop)
-
         # create permissions manager
         self.permissions = PermissionManager(self)
 
@@ -97,7 +87,6 @@ class Connection:
 
         self.connected = False
 
-
     @asyncio.coroutine
     def connect(self):
         """
@@ -112,9 +101,8 @@ class Connection:
             self.logger.info("[{}] Connecting".format(self.readable_name))
 
         self.transport, self.protocol = yield from self.loop.create_connection(
-            lambda: IRCProtocol(self, self.loop, self.logger), host=self.host, port=self.port, ssl=self.ssl_context,
+            lambda: IRCProtocol(self.loop, self.logger, self.connect, self.readable_name), host=self.server, port=self.port, ssl=self.ssl_context,
         )
-
 
         # send the password, nick, and user
         self.set_pass(self.config["connection"].get("password"))
@@ -138,7 +126,7 @@ class Connection:
     @asyncio.coroutine
     def _read_message(self):
         """Internal dispatcher for messages received from the protocol."""
-        message = yield from self.protocol.read_message()
+        message = yield from self.protocol.message_queue.get()
 
         # this does nothing now
         handler = getattr(self, '_handle_' + message.command, None)
@@ -148,9 +136,9 @@ class Connection:
             self._handle_generic(message)
 
     def _handle_generic(self, message):
-        # TODO: make BaseEvent work again!
-        event = BaseEvent(conn=self.botconn, irc_message=message)
-        self.event_queue.put_nowait(event)
+        # TODO: Parse nick, user, host and mask somewhere in here
+        event = BaseEvent(conn=self, irc_message=message)
+        asyncio.async(self.bot.process(event))
 
     def stop(self):
         if not self.connected:
@@ -176,7 +164,7 @@ class Connection:
         """ makes the bot join a channel
         :type channel: str
         """
-        self.send("JOIN {}".format(channel))
+        self.cmd("JOIN", [channel])
         if channel not in self.channels:
             self.channels.append(channel)
 
@@ -209,17 +197,15 @@ class Connection:
         :type command: str
         :type params: list[str]
         """
-        if params:
-            params[-1] = ':' + params[-1]
-            self.send("{} {}".format(command, ' '.join(params)))
-        else:
-            self.send(command)
 
-    def send(self, string):
-        """
-        :type string: str
-        """
         if not self.connected:
+<<<<<<< Updated upstream
             raise ValueError("Connection must be connected to irc server to use send")
         self.logger.info("[{}] >> {}".format(self.readable_name, string))
         self.loop.call_soon_threadsafe(asyncio.async, self.output_queue.put(string))
+=======
+            raise ValueError("Connection must be connected to irc server to use cmd")
+        if params is None:
+            params = []
+        self.loop.call_soon_threadsafe(asyncio.async, self.protocol.send_message(command, params))
+>>>>>>> Stashed changes

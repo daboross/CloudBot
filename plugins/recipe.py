@@ -43,7 +43,7 @@ def get_data(url):
 
 @hook.command(autohelp=False)
 def recipe(text):
-    """recipe [term] - Gets a recipe for [term], or ets a random recipe if [term] is not provided"""
+    """[term] - gets a recipe for [term], or gets a random recipe if no term is specified"""
     if text:
         # get the recipe URL by searching
         try:
@@ -80,12 +80,12 @@ def recipe(text):
         return "Could not parse recipe: {}".format(e)
 
     name = data["name"].strip()
-    return "Try eating \x02{}!\x02 - {}".format(name, web.try_isgd(url))
+    return "Try eating \x02{}!\x02 - {}".format(name, web.try_shorten(url))
 
 
 @hook.command(autohelp=False)
 def dinner():
-    """dinner - WTF IS FOR DINNER"""
+    """- gets a random dinner from whatthefuckshouldimakefordinner.com"""
     try:
         page = http.open(random_url)
     except (http.HTTPError, http.URLError) as e:
@@ -103,4 +103,4 @@ def dinner():
     if censor:
         text = text.replace("FUCK", "F**K")
 
-    return "{} - {}".format(text, web.try_isgd(url))
+    return "{} - {}".format(text, web.try_shorten(url))

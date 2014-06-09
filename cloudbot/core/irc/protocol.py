@@ -1,52 +1,76 @@
 import asyncio
-from asyncio.queues import Queue
 import re
 
 
 class IRCProtocol(asyncio.Protocol):
-    def __init__(self, loop, logger, charset='utf8'):
-        """
-        :type ircconn: IRCConnection
-        """
-        self.message_queue = Queue(loop=loop)
+    def __init__(self, loop, logger, reconnect, readable_name, charset='utf8'):
+        self.message_queue = asyncio.Queue(loop=loop)
+        self.loop = loop
         self.charset = charset
         self.logger = logger
+
+        # function to call to reconnect
+        self.reconnect = reconnect
+        # readable name
+        self.readable_name = readable_name
 
         # input buffer
         self._input_buffer = b""
 
         # connected
         self._connected = False
+        # Future that waits until we are connected
+        self._connected_future = asyncio.Future()
 
         # transport
         self.transport = None
+        # registered
+        self.registered = False
 
     def connection_made(self, transport):
         self.transport = transport
         self._connected = True
+        self._connected_future.set_result(None)
+        # we don't need the _connected_future, everything uses it will check _connected first.
+        del self._connected_future
 
     def connection_lost(self, exc):
         self._connected = False
+        # create a new connected_future for when we are connected.
+        self._connected_future = asyncio.Future()
         if exc is None:
             # we've been closed intentionally, so don't reconnect
             return
         self.logger.exception("[{}] Connection lost.".format(self.readable_name))
-        #asyncio.async(self.botconn.connect(), loop=self.loop)
+        asyncio.async(self.reconnect(), loop=self.loop)
 
     def eof_received(self):
         self._connected = False
+        # create a new connected_future for when we are connected.
+        self._connected_future = asyncio.Future()
         self.logger.info("[{}] EOF Received, reconnecting.".format(self.readable_name))
-        #asyncio.async(self.botconn.connect(), loop=self.loop)
+        asyncio.async(self.reconnect(), loop=self.loop)
         return True
 
+    @asyncio.coroutine
     def send_message(self, command, *args):
+        """
+        Sends an IRC message to the connected server. If we aren't currently connected to the server, this method will
+        pause until we connect.
+        :param command: IRC Command
+        :param args: Command parameters
+        """
         message = IRCMessage(command, *args)
-        self.logger.debug("sent: %r", message)
-        self.transport.write(message.render().encode(self.charset) + b'\r\n')
+        # make sure we are connected before sending
+        if not self._connected:
+            yield from self._connected_future
+        message_text = message.render()
+        self.logger.info("[{}] >> {}".format(self.readable_name, message_text))
+        self.transport.write(message_text.encode(self.charset) + b'\r\n')
 
     def handle_message(self, message):
         if message.command == 'PING':
-            self.send_message('PONG', message.args[-1])
+            asyncio.async(self.send_message('PONG', message.args[-1]))
 
         elif message.command == 'RPL_WELCOME':
             # 001, first thing sent after registration
@@ -76,6 +100,7 @@ class IRCMessage:
     Despite how clueless the IRC protocol is about character encodings, this
     class deals only with strings, not bytes.  Decode elsewhere, thanks.
     """
+
     def __init__(self, command, *args, prefix=None):
         if command.isdigit():
             # TODO command can't be a number when coming from a client
@@ -153,7 +178,6 @@ class IRCMessage:
 
         return cls(m.group('command'), *args, prefix=m.group('prefix'))
 
-
 # Mapping of useless numeric codes to slightly less useless symbolic names.
 # References:
 # https://www.alien.net.au/irc/irc2numerics.html
@@ -162,23 +186,18 @@ NUMERICS = {
     '002': 'RPL_YOURHOST',
     '003': 'RPL_CREATED',
     '004': 'RPL_MYINFO',
-    '001': 'RPL_WELCOME',
-    '002': 'RPL_YOURHOST',
-    '003': 'RPL_CREATED',
-    '004': 'RPL_MYINFO',
-    '004': 'RPL_MYINFO',
-    #[obsolete] '005': 'RPL_BOUNCE',
+    # [obsolete] '005': 'RPL_BOUNCE',
     '005': 'RPL_ISUPPORT',
-    #[UNREAL] '006': 'RPL_MAP',
-    #[UNREAL] '007': 'RPL_MAPEND',
+    # [UNREAL] '006': 'RPL_MAP',
+    # [UNREAL] '007': 'RPL_MAPEND',
     '008': 'RPL_SNOMASK',
     '009': 'RPL_STATMEMTOT',
     '010': 'RPL_BOUNCE',
-    #[obsolete] '010': 'RPL_STATMEM',
+    # [obsolete] '010': 'RPL_STATMEM',
     '014': 'RPL_YOURCOOKIE',
-    #[IRCU] '015': 'RPL_MAP',
-    #[IRCU] '016': 'RPL_MAPMORE',
-    #[IRCU] '017': 'RPL_MAPEND',
+    # [IRCU] '015': 'RPL_MAP',
+    # [IRCU] '016': 'RPL_MAPMORE',
+    # [IRCU] '017': 'RPL_MAPEND',
     '042': 'RPL_YOURID',
     '043': 'RPL_SAVENICK',
     '050': 'RPL_ATTEMPTINGJUNC',
@@ -193,7 +212,7 @@ NUMERICS = {
     '207': 'RPL_TRACESERVICE',
     '208': 'RPL_TRACENEWTYPE',
     '209': 'RPL_TRACECLASS',
-    #[obsolete] '210': 'RPL_TRACERECONNECT',
+    # [obsolete] '210': 'RPL_TRACERECONNECT',
     '210': 'RPL_STATS',
     '211': 'RPL_STATSLINKINFO',
     '212': 'RPL_STATSCOMMANDS',
@@ -320,7 +339,6 @@ NUMERICS = {
     '296': 'RPL_CHANINFO_KICKS',
     '299': 'RPL_END_CHANINFO',
     '300': 'RPL_NONE',
-    '301': 'RPL_AWAY',
     '301': 'RPL_AWAY',
     '302': 'RPL_USERHOST',
     '303': 'RPL_ISON',

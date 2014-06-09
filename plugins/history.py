@@ -1,5 +1,6 @@
 from collections import deque
 import time
+import asyncio
 import re
 
 from cloudbot import hook, timesince
@@ -42,29 +43,30 @@ def track_history(event, message_time, conn):
     history.append(data)
 
 
-@hook.event('PRIVMSG', ignorebots=False, singlethread=True)
+@hook.irc_raw('PRIVMSG', ignorebots=False, singlethread=True)
 def chat_tracker(event, db, conn):
     message_time = time.time()
     track_seen(event, message_time, db, conn)
     track_history(event, message_time, conn)
 
 
+@asyncio.coroutine
 @hook.command(autohelp=False)
-def resethistory(input, conn):
-    """resethistory - Resets chat history for the current channel"""
+def resethistory(event, conn):
+    """- resets chat history for the current channel"""
     try:
-        conn.history[input.chan].clear()
+        conn.history[event.chan].clear()
         return "Reset chat history for current channel."
     except KeyError:
         # wat
         return "There is no history for this channel."
 
 
-@hook.command
-def seen(text, nick, chan, db, input, conn):
-    """seen <nick> <channel> -- Tell when a nickname was last in active in one of this bot's channels."""
+@hook.command()
+def seen(text, nick, chan, db, event, conn):
+    """<nick> <channel> - tells when a nickname was last in active in one of my channels"""
 
-    if input.conn.nick.lower() == text.lower():
+    if event.conn.nick.lower() == text.lower():
         return "You need to get your eyes checked."
 
     if text.lower() == nick.lower():
@@ -75,8 +77,8 @@ def seen(text, nick, chan, db, input, conn):
 
     db_init(db, conn.name)
 
-    last_seen = db.execute("select name, time, quote from seen_user where name"
-                           " like :name and chan = :chan", {'name': text, 'chan': chan}).fetchone()
+    last_seen = db.execute("select name, time, quote from seen_user where name like :name and chan = :chan",
+                           {'name': text, 'chan': chan}).fetchone()
 
     if last_seen:
         reltime = timesince.timesince(last_seen[1])

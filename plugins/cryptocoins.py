@@ -1,4 +1,5 @@
-from cloudbot import http, hook
+import requests
+from cloudbot import hook
 
 ## CONSTANTS
 
@@ -31,8 +32,7 @@ exchanges = {
 
 @hook.command(["btc", "bitcoin"], autohelp=False)
 def bitcoin(text, notice):
-    """bitcoin <exchange> -- Gets current exchange rate for bitcoins from several exchanges, default is Blockchain.
-    Supports MtGox, Bitpay, Coinbase and BitStamp.
+    """[mtgox|bitpay|coinbase|bitstamp] - gets bitcoin exchange rate using <exchange>, defaulting to blockchain
     :type text: str
     """
     text = text.lower()
@@ -48,15 +48,20 @@ def bitcoin(text, notice):
     else:
         exchange = exchanges["blockchain"]
 
-    data = http.get_json(exchange["api_url"])
+    response = requests.get(exchange["api_url"])
+    if response.status_code != requests.codes.ok:
+        return "Error reaching {}: {}".format(text or "blockchain", response.status_code)
     func = exchange["func"]
-    return func(data)
+    return func(response.json())
 
 
 @hook.command(["ltc", "litecoin"], autohelp=False)
 def litecoin(message):
-    """litecoin -- gets current exchange rate for litecoins from BTC-E"""
-    data = http.get_json("https://btc-e.com/api/2/ltc_usd/ticker")
+    """- gets litecoin exchange rate from BTC-E"""
+    response = requests.get("https://btc-e.com/api/2/ltc_usd/ticker")
+    if response.status_code != requests.codes.ok:
+        return "Error reaching btc-e.com: {}".format(response.status_code)
+    data = response.json()
     ticker = data['ticker']
     message("Current: \x0307${:,.2f}\x0f - High: \x0307${:,.2f}\x0f"
             " - Low: \x0307${:,.2f}\x0f - Volume: {:,.2f} LTC".format(ticker['buy'], ticker['high'], ticker['low'],

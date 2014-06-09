@@ -31,15 +31,7 @@ def find_hooks(parent, module):
             # if it has cloudbot hook
             func_hooks = func._cloudbot_hook
 
-            if "options" in func_hooks:
-                options = func_hooks["options"]
-            else:
-                options = {}
-
             for hook_type, func_hook in func_hooks.items():
-                if hook_type == "options":
-                    continue
-                func_hook.kwargs.update(options)
                 type_lists[hook_type].append(_hook_name_to_plugin[hook_type](parent, func_hook))
 
             # delete the hook to free memory
@@ -162,7 +154,7 @@ class PluginManager:
 
         # run onload hooks
         for onload_hook in plugin.run_on_load:
-            success = yield from self.launch(onload_hook, events.BaseEvent(bot=self.bot))
+            success = yield from self.launch(onload_hook, events.BaseEvent(bot=self.bot, hook=onload_hook))
             if not success:
                 self.bot.logger.warning(
                     "Not registering hooks from plugin {}: onload hook errored".format(plugin.title))
@@ -285,61 +277,50 @@ class PluginManager:
         :type event: cloudbot.core.events.BaseEvent
         :rtype: list
         """
-        # Does the command need DB access?
-        uses_db = "db" in hook.required_args
         parameters = []
-        if uses_db:
-            # create SQLAlchemy session
-            self.bot.logger.debug("Opened database session for {}:{}".format(hook.plugin.title, hook.function_name))
-            event.db = self.bot.db_session()
-
         for required_arg in hook.required_args:
             if hasattr(event, required_arg):
                 value = getattr(event, required_arg)
                 parameters.append(value)
             else:
-                self.bot.logger.error("Plugin {}:{} asked for invalid argument '{}', cancelling execution!"
-                                      .format(hook.plugin.title, hook.function_name, required_arg))
+                self.bot.logger.error("Plugin {} asked for invalid argument '{}', cancelling execution!"
+                                      .format(hook.description, required_arg))
                 self.bot.logger.debug("Valid arguments are: {} ({})".format(dir(event), event))
                 return None
-        return uses_db, parameters
+        return parameters
 
     def _execute_hook_threaded(self, hook, event):
-        value = self._prepare_parameters(hook, event)
-        if value is None:
+        """
+        :type hook: Hook
+        :type event: cloudbot.core.events.BaseEvent
+        """
+        event.prepare_threaded()
+
+        parameters = self._prepare_parameters(hook, event)
+        if parameters is None:
             return None
-        create_db, parameters = value
-        if create_db:
-            # create SQLAlchemy session
-            self.bot.logger.debug("Opened database session for {}:{}".format(hook.plugin.title, hook.function_name))
-            event.db = event.bot.db_session()
 
         try:
             return hook.function(*parameters)
         finally:
-            # ensure that the database session is closed
-            if create_db:
-                self.bot.logger.debug("Closed database session for {}:{}".format(hook.plugin.title, hook.function_name))
-                event.db.close()
+            event.close_threaded()
 
     @asyncio.coroutine
     def _execute_hook_sync(self, hook, event):
-        value = self._prepare_parameters(hook, event)
-        if value is None:
+        """
+        :type hook: Hook
+        :type event: cloudbot.core.events.BaseEvent
+        """
+        yield from event.prepare()
+
+        parameters = self._prepare_parameters(hook, event)
+        if parameters is None:
             return None
-        create_db, parameters = value
-        if create_db:
-            # create SQLAlchemy session
-            self.bot.logger.debug("Opened database session for {}:{}".format(hook.plugin.title, hook.function_name))
-            event.db = self.bot.db_session()
 
         try:
-            return hook.function(*parameters)
+            return (yield from hook.function(*parameters))
         finally:
-            # ensure that the database session is closed
-            if create_db:
-                self.bot.logger.debug("Closed database session for {}:{}".format(hook.plugin.title, hook.function_name))
-                event.db.close()
+            yield from event.close()
 
     @asyncio.coroutine
     def _execute_hook(self, hook, event):
@@ -360,7 +341,7 @@ class PluginManager:
             else:
                 out = yield from self._execute_hook_sync(hook, event)
         except Exception:
-            self.bot.logger.exception("Error in hook {}:{}".format(hook.plugin.title, hook.function_name))
+            self.bot.logger.exception("Error in hook {}".format(hook.description))
             return False
 
         if out is not None:
@@ -377,12 +358,11 @@ class PluginManager:
         """
         try:
             if sieve.threaded:
-                result = yield from self.bot.loop.run_in_executor(sieve.function, self.bot, event, hook)
+                result = yield from self.bot.loop.run_in_executor(None, sieve.function, self.bot, event, hook)
             else:
                 result = yield from sieve.function(self.bot, event, hook)
         except Exception:
-            self.bot.logger.exception("Error running sieve {}:{} on {}:{}:".format(
-                sieve.plugin.title, sieve.function_name, hook.plugin.title, hook.function_name))
+            self.bot.logger.exception("Error running sieve {} on {}:".format(sieve.description, hook.description))
             return None
         else:
             return result
@@ -406,6 +386,7 @@ class PluginManager:
 
         if hook.type == "command" and hook.auto_help and not event.text and hook.doc is not None:
             event.notice_doc()
+            return False
 
         if hook.single_thread:
             # There should only be one running instance of this hook, so let's wait for the last event to be processed
@@ -476,6 +457,7 @@ class Plugin:
         # plugin is reloaded
         self.tables = find_tables(code)
 
+    @asyncio.coroutine
     def create_tables(self, bot):
         """
         Creates all sqlalchemy Tables that are registered in this plugin
@@ -488,8 +470,8 @@ class Plugin:
             bot.logger.info("Registering tables for {}".format(self.title))
 
             for table in self.tables:
-                if not table.exists(bot.db_engine):
-                    table.create(bot.db_engine)
+                if not (yield from bot.loop.run_in_executor(None, table.exists, bot.db_engine)):
+                    yield from bot.loop.run_in_executor(None, table.create, bot.db_engine)
 
     def unregister_tables(self, bot):
         """
@@ -519,7 +501,7 @@ class Hook:
     :type single_thread: bool
     """
 
-    def __init__(self, _type, plugin, func_hook, default_threaded=True):
+    def __init__(self, _type, plugin, func_hook):
         """
         :type _type: str
         :type plugin: Plugin
@@ -534,12 +516,10 @@ class Hook:
         if self.required_args is None:
             self.required_args = []
 
-        if func_hook.kwargs.pop("threaded", default_threaded) and not asyncio.iscoroutine(self.function):
-            self.threaded = True
-        else:
+        if asyncio.iscoroutine(self.function) or asyncio.iscoroutinefunction(self.function):
             self.threaded = False
-            if not asyncio.iscoroutine(self.function):
-                self.function = asyncio.coroutine(self.function)
+        else:
+            self.threaded = True
 
         self.ignore_bots = func_hook.kwargs.pop("ignorebots", False)
         self.permissions = func_hook.kwargs.pop("permissions", [])
@@ -547,8 +527,12 @@ class Hook:
 
         if func_hook.kwargs:
             # we should have popped all the args, so warn if there are any left
-            logging.getLogger("cloudbot").warning("Ignoring extra args {} from {}:{}".format(
-                func_hook.kwargs, self.plugin.title, self.function_name))
+            logging.getLogger("cloudbot").warning("Ignoring extra args {} from {}".format(
+                func_hook.kwargs, self.description))
+
+    @property
+    def description(self):
+        return "{}:{}".format(self.plugin.title, self.function_name)
 
     def __repr__(self):
         return "type: {}, plugin: {}, ignore_bots: {}, permissions: {}, single_thread: {}, threaded: {}".format(
@@ -639,7 +623,7 @@ class SieveHook(Hook):
         :type sieve_hook: cloudbot.util.hook._SieveHook
         """
         # We don't want to thread sieves by default - this is retaining old behavior for compatibility
-        super().__init__("sieve", plugin, sieve_hook, default_threaded=False)
+        super().__init__("sieve", plugin, sieve_hook)
 
     def __repr__(self):
         return "Sieve[{}]".format(Hook.__repr__(self))

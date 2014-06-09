@@ -3,10 +3,10 @@ from urllib.parse import urlencode
 
 from cloudbot import hook, http, timeformat
 
-hulu_re = (r'(.*://)(www.hulu.com|hulu.com)(.*)', re.I)
+hulu_re = re.compile(r'(.*://)(www.hulu.com|hulu.com)(.*)', re.I)
 
 
-@hook.regex(*hulu_re)
+@hook.regex(hulu_re)
 def hulu_url(match):
     data = http.get_json("http://www.hulu.com/api/oembed.json?url=http://www.hulu.com" + match.group(3))
     showname = data['title'].split("(")[-1].split(")")[0]
@@ -16,7 +16,7 @@ def hulu_url(match):
 
 @hook.command('hulu')
 def hulu_search(text):
-    """hulu <search> - Search Hulu"""
+    """<query> - searches Hulu for <query>"""
     result = http.get_soup(
         "http://m.hulu.com/search?dp_identifier=hulu&{}&items_per_page=1&page=1".format(urlencode({'query': text})))
     data = result.find('results').find('videos').find('video')

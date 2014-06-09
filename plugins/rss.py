@@ -1,8 +1,8 @@
-from cloudbot import hook, http, formatting, web
+from cloudbot import hook, formatting, web
 
 
 @hook.command("feed")
-@hook.command
+@hook.command()
 def rss(text, message):
     """rss <feed> -- Gets the first three items from the RSS feed <feed>."""
     limit = 3
@@ -27,10 +27,7 @@ def rss(text, message):
 
     for row in result.rows:
         title = formatting.truncate_str(row["title"], 100)
-        try:
-            link = web.isgd(row["link"])
-        except (web.ShortenError, http.HTTPError, http.URLError):
-            link = row["link"]
+        link = web.try_shorten(row["link"])
         message("{} - {}".format(title, link))
 
 

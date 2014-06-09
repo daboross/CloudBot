@@ -6,9 +6,9 @@ from cloudbot import hook, http, web
 gateway = 'http://open.spotify.com/{}/{}'  # http spotify gw address
 spuri = 'spotify:{}:{}'
 
-spotify_re = (r'(spotify:(track|album|artist|user):([a-zA-Z0-9]+))', re.I)
-http_re = (r'(open\.spotify\.com\/(track|album|artist|user)\/'
-           '([a-zA-Z0-9]+))', re.I)
+spotify_re = re.compile(r'(spotify:(track|album|artist|user):([a-zA-Z0-9]+))', re.I)
+http_re = re.compile(r'(open\.spotify\.com\/(track|album|artist|user)\/'
+                     '([a-zA-Z0-9]+))', re.I)
 
 
 def sptfy(inp, sptfy=False):
@@ -28,11 +28,11 @@ def sptfy(inp, sptfy=False):
                 'class': 'messagebox_text'}).find('p').text.split("<br/>")[0])
             return message
     else:
-        return web.try_isgd(inp)
+        return web.try_shorten(inp)
 
 
 @hook.command('sptrack')
-@hook.command
+@hook.command()
 def spotify(inp):
     """spotify <song> -- Search Spotify for <song>"""
     try:
@@ -50,7 +50,7 @@ def spotify(inp):
                                                   data["tracks"][0]["artists"][0]["name"], url)
 
 
-@hook.command
+@hook.command()
 def spalbum(inp):
     """spalbum <album> -- Search Spotify for <album>"""
     try:
@@ -68,7 +68,7 @@ def spalbum(inp):
                                                   data["albums"][0]["artists"][0]["name"], url)
 
 
-@hook.command
+@hook.command()
 def spartist(inp):
     """spartist <artist> -- Search Spotify for <artist>"""
     try:
@@ -85,8 +85,8 @@ def spartist(inp):
     return "\x02{}\x02 - {}".format(data["artists"][0]["name"], url)
 
 
-@hook.regex(*http_re)
-@hook.regex(*spotify_re)
+@hook.regex(http_re)
+@hook.regex(spotify_re)
 def spotify_url(match):
     type = match.group(2)
     spotify_id = match.group(3)

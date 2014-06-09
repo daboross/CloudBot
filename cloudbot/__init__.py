@@ -5,10 +5,10 @@ import os
 
 from .core.irc import connection, protocol
 from .core import bot, config, permissions, pluginmanager, events
-from .util import botvars, bucket, formatting, hook, http, pyexec, textgen, timeformat, timesince, urlnorm, web
+from .util import botvars, bucket, formatting, hook, http, textgen, timeformat, timesince, urlnorm, web
 
 __all__ = ["core", "util", "bot", "connection", "config", "permissions", "pluginmanager", "events", "botvars", "bucket",
-           "formatting", "hook", "http", "pyexec", "textgen", "timeformat", "timesince", "urlnorm", "web", "dev_mode"]
+           "formatting", "hook", "http", "textgen", "timeformat", "timesince", "urlnorm", "web", "dev_mode"]
 
 
 def _setup():

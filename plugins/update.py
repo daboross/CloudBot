@@ -3,7 +3,7 @@ from git import Repo
 from cloudbot import hook, web
 
 
-@hook.command
+@hook.command()
 def update():
     repo = Repo()
     git = repo.git
@@ -12,12 +12,12 @@ def update():
     except Exception as e:
         return e
     if "\n" in pull:
-        return web.haste(pull)
+        return web.paste(pull)
     else:
         return pull
 
 
-@hook.command
+@hook.command()
 def version():
     repo = Repo()
 

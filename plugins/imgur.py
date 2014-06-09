@@ -18,8 +18,7 @@ def is_valid(data):
 
 @hook.command(autohelp=False)
 def imgur(text):
-    """imgur [subreddit] -- Gets the first page of imgur images from [subreddit] and returns a link to them.
-     If [subreddit] is undefined, return any imgur images"""
+    """[subreddit] - returns a link to the first page of imgur images from [subreddit], or the first page of all imgur images if no subreddit is provided"""
     if text:
         # see if the input ends with "nsfw"
         show_nsfw = text.endswith(" nsfw")
@@ -76,6 +75,6 @@ def imgur(text):
         return "No images found (use .imgur <subreddit> nsfw to show explicit content)"
 
     if show_nsfw:
-        return "{} \x02NSFW\x02".format(web.isgd("http://imgur.com/" + ','.join(items)))
+        return "{} \x02NSFW\x02".format(web.try_shorten("http://imgur.com/" + ','.join(items)))
     else:
-        return web.isgd("http://imgur.com/" + ','.join(items))
+        return web.try_shorten("http://imgur.com/" + ','.join(items))

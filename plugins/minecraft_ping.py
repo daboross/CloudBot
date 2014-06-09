@@ -7,10 +7,8 @@ from cloudbot import hook
 
 try:
     import DNS
-
-    has_dns = True
 except ImportError:
-    has_dns = False
+    DNS = None
 
 mc_colors = [('\xa7f', '\x0300'), ('\xa70', '\x0301'), ('\xa71', '\x0302'), ('\xa72', '\x0303'),
              ('\xa7c', '\x0304'), ('\xa74', '\x0305'), ('\xa75', '\x0306'), ('\xa76', '\x0307'),
@@ -20,7 +18,7 @@ mc_colors = [('\xa7f', '\x0300'), ('\xa70', '\x0301'), ('\xa71', '\x0302'), ('\x
              ('\xa7r', '\x0f'), ('\xa7n', '\x15')]
 
 
-## EXCEPTIONS
+# EXCEPTIONS
 
 
 class PingError(Exception):
@@ -71,6 +69,10 @@ def mcping_modern(host, port):
             raise PingError("Invalid hostname")
         except socket.timeout:
             raise PingError("Request timed out")
+        except ConnectionRefusedError:
+            raise PingError("Connection refused")
+        except ConnectionError:
+            raise PingError("Connection error")
 
         # send handshake + status request
         s.send(pack_data(b"\x00\x00" + pack_data(host.encode('utf8')) + pack_port(port) + b"\x01"))
@@ -124,12 +126,16 @@ def mcping_legacy(host, port):
 
     try:
         sock.connect((host, port))
-        sock.send('\xfe\x01')
+        sock.send(b'\xfe\x01')
         response = sock.recv(1)
     except socket.gaierror:
         raise PingError("Invalid hostname")
     except socket.timeout:
         raise PingError("Request timed out")
+    except ConnectionRefusedError:
+        raise PingError("Connection refused")
+    except ConnectionError:
+        raise PingError("Connection error")
 
     if response[0] != '\xff':
         raise PingError("Invalid response")
@@ -187,7 +193,7 @@ def parse_input(inp):
         except ValueError:
             raise ParseError("The port '{}' is invalid.".format(port))
         return host, port
-    if has_dns:
+    if DNS is not None:
         # the port is not in the input string, but we have PyDNS so look for a SRV record
         srv_data = check_srv(inp)
         if srv_data:
@@ -214,7 +220,7 @@ def format_output(data):
 
 @hook.command(["mcping", "mcp"])
 def mcping(text):
-    """mcping <server>[:port] - Ping a Minecraft server to check status."""
+    """<server[:port]> - gets the MOTD of the Minecraft server at <server[:port]>"""
     try:
         host, port = parse_input(text)
     except ParseError as e:

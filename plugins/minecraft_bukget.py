@@ -99,7 +99,7 @@ def format_output(data):
     version_number = data['versions'][0]['version']
 
     bukkit_versions = ", ".join(current_version['game_versions'])
-    link = web.try_isgd(current_version['link'])
+    link = web.try_shorten(current_version['link'])
 
     if description:
         line_a = "\x02{}\x02, by \x02{}\x02 - {} - ({}) \x02{}".format(name, authors, description, stage, url)
@@ -114,10 +114,9 @@ def format_output(data):
 
 ## HOOK FUNCTIONS
 
-@hook.command('plugin')
-@hook.command
+@hook.command(["bukget", "plugin"])
 def bukget(text, reply, message):
-    """bukget <slug/name> - Look up a plugin on dev.bukkit.org"""
+    """<slug/name> - gets details on a plugin from dev.bukkit.org"""
     # get the plugin slug using search
     try:
         slug = plugin_search(text)
@@ -139,7 +138,7 @@ def bukget(text, reply, message):
 
 @hook.command(autohelp=None)
 def randomplugin(reply, message):
-    """randomplugin - Gets a random plugin from dev.bukkit.org"""
+    """- gets details on a random plugin from dev.bukkit.org"""
     # get a random plugin slug
     try:
         slug = plugin_random()

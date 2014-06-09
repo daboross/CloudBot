@@ -6,7 +6,7 @@ from cloudbot.util.formatting import FormattedString, Color, Bold
 
 @hook.command(autohelp=False)
 def mcstatus():
-    """mcstatus -- Checks the status of various Mojang (the creators of Minecraft) servers."""
+    """- gets the status of various Mojang (Minecraft) servers"""
 
     try:
         request = http.get("http://status.mojang.com/check")

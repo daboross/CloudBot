@@ -3,7 +3,7 @@ from cloudbot import hook, http, web
 
 @hook.command(autohelp=False)
 def fact():
-    """fact -- Gets a random fact from OMGFACTS."""
+    """- gets a random fact from OMGFACTS"""
 
     attempts = 0
 
@@ -32,6 +32,6 @@ def fact():
                 attempts += 1
                 continue
 
-    url = web.try_isgd(link)
+    url = web.try_shorten(link)
 
     return "{} - {}".format(fact_data, url)

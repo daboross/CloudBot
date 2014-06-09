@@ -32,10 +32,10 @@ def n_rolls(count, n):
                                                (.5 * (1 + n)) ** 2) * count) ** .5))]
 
 
-
-@plugin.command("roll", "dice")
+@asyncio.coroutine
+@hook.command(["roll", "dice"])
 def dice(text, notice):
-    """dice <dice roll> -- Simulates dice rolls. Example: 'dice 2d20-d5+4 roll 2': D20s, subtract 1D5, add 4
+    """<dice roll> - simulates dice rolls. Example: 'dice 2d20-d5+4 roll 2': D20s, subtract 1D5, add 4
     :type text: str
     """
 

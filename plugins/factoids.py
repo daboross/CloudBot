@@ -1,13 +1,17 @@
 # Written by Scaevolus 2010
 import string
+import asyncio
 import re
+
+import requests
 
 from sqlalchemy import Table, Column, String
 
-from cloudbot import botvars, hook, http, formatting, pyexec
+from cloudbot import botvars, hook, formatting, web
 
 re_lineends = re.compile(r'[\r\n]*')
 
+FACTOID_CHAR = "?"  # TODO: config
 
 # some simple "shortcodes" for formatting purposes
 shortcodes = {
@@ -27,21 +31,27 @@ table = Table(
     Column("nick", String)
 )
 
+
+def _load_cache_db(db):
+    query = db.execute(table.select())
+    return [(row["word"], row["data"]) for row in query]
+
+
+@asyncio.coroutine
 @hook.onload()
-def load_cache(db):
+def load_cache(async, db):
     """
     :type db: sqlalchemy.orm.Session
     """
     global factoid_cache
     factoid_cache = {}
-    for row in db.execute(table.select()):
-        word = row["word"]
-        data = row["data"]
+    for word, data in (yield from async(_load_cache_db, db)):
         # nick = row["nick"]
         factoid_cache[word] = data  # we might want (data, nick) sometime later
 
 
-def add_factoid(db, word, data, nick):
+@asyncio.coroutine
+def add_factoid(async, db, word, data, nick):
     """
     :type db: sqlalchemy.orm.Session
     :type word: str
@@ -50,29 +60,29 @@ def add_factoid(db, word, data, nick):
     """
     if word in factoid_cache:
         # if we have a set value, update
-        db.execute(table.update().values(data=data, nick=nick).where(table.c.word == word))
+        yield from async(db.execute, table.update().values(data=data, nick=nick).where(table.c.word == word))
     else:
         # otherwise, insert
-        db.execute(table.insert().values(word=word, data=data, nick=nick))
-    db.commit()
-    load_cache(db)
+        yield from async(db.execute, table.insert().values(word=word, data=data, nick=nick))
+    yield from async(db.commit)
+    yield from load_cache(async, db)
 
 
-def del_factoid(db, word):
+@asyncio.coroutine
+def del_factoid(async, db, word):
     """
     :type db: sqlalchemy.orm.Session
     :type word: str
     """
-    db.execute(table.delete().where(table.c.word == word))
-    db.commit()
-    load_cache(db)
+    yield from async(db.execute, table.delete().where(table.c.word == word))
+    yield from async(db.commit)
+    yield from load_cache(async, db)
 
 
+@asyncio.coroutine
 @hook.command(["r", "remember"], permissions=["addfactoid"])
-def remember(text, nick, db, notice):
-    """remember <word> [+]<data> -- Remembers <data> with <word>. Add + to <data> to append."""
-
-    append = False
+def remember(text, nick, db, notice, async):
+    """<word> [+]<data> - remembers <data> with <word> - add + to <data> to append"""
 
     try:
         word, data = text.split(None, 1)
@@ -82,7 +92,6 @@ def remember(text, nick, db, notice):
     old_data = factoid_cache.get(word)
 
     if data.startswith('+') and old_data:
-        append = True
         # remove + symbol
         new_data = data[1:]
         # append new_data to the old_data
@@ -90,37 +99,35 @@ def remember(text, nick, db, notice):
             data = old_data + new_data
         else:
             data = old_data + ' ' + new_data
-
-    add_factoid(db, word, data, nick)
-
-    if old_data:
-        if append:
-            notice("Appending \x02{}\x02 to \x02{}\x02".format(new_data, old_data))
-        else:
-            notice('Remembering \x02{}\x02 for \x02{}\x02. Type ?{} to see it.'.format(data, word, word))
-            notice('Previous data was \x02{}\x02'.format(old_data))
+        notice("Appending \x02{}\x02 to \x02{}\x02".format(new_data, old_data))
     else:
-        notice('Remembering \x02{}\x02 for \x02{}\x02. Type ?{} to see it.'.format(data, word, word))
+        notice('Remembering \x02{0}\x02 for \x02{1}\x02. Type {2}{1} to see it.'.format(data, word, FACTOID_CHAR))
+        if old_data:
+            notice('Previous data was \x02{}\x02'.format(old_data))
+
+    yield from add_factoid(async, db, word, data, nick)
 
 
+@asyncio.coroutine
 @hook.command(["f", "forget"], permissions=["delfactoid"])
-def forget(text, db, notice):
-    """forget <word> -- Forgets a remembered <word>."""
+def forget(text, db, async, notice):
+    """<word> - forgets previously remembered <word>"""
 
     data = factoid_cache.get(text)
 
     if data:
-        del_factoid(db, text)
-        notice('"%s" has been forgotten.' % data.replace('`', "'"))
+        yield from del_factoid(async, db, text)
+        notice('"{}" has been forgotten.'.format(data.replace('`', "'")))
         return
     else:
         notice("I don't know about that.")
         return
 
 
-@hook.command
+@asyncio.coroutine
+@hook.command()
 def info(text, notice):
-    """info <factoid> -- Shows the source of a factoid."""
+    """<factoid> - shows the source of a factoid"""
 
     text = text.strip()
 
@@ -130,12 +137,13 @@ def info(text, notice):
         notice("Unknown Factoid.")
 
 
-@hook.regex(r'^\? ?(.+)')
-def factoid(inp, input, db, message, action):
-    """?<word> -- Shows what data is associated with <word>."""
+@asyncio.coroutine
+@hook.regex(r'^{} ?(.+)'.format(re.escape(FACTOID_CHAR)))
+def factoid(match, async, event, message, action):
+    """<word> - shows what data is associated with <word>"""
 
     # split up the input
-    split = inp.group(1).strip().split(" ")
+    split = match.group(1).strip().split(" ")
     factoid_id = split[0]
 
     if len(split) >= 1:
@@ -149,9 +157,9 @@ def factoid(inp, input, db, message, action):
         if data.startswith("<py>"):
             code = data[4:].strip()
             variables = 'input="""{}"""; nick="{}"; chan="{}"; bot_nick="{}";'.format(arguments.replace('"', '\\"'),
-                                                                                      input.nick, input.chan,
-                                                                                      input.conn.nick)
-            result = pyexec.eval_py(variables + code)
+                                                                                      event.nick, event.chan,
+                                                                                      event.conn.nick)
+            result = yield from async(web.pyeval, variables + code)
         else:
             result = data
 
@@ -163,25 +171,28 @@ def factoid(inp, input, db, message, action):
             action(result)
         elif result.startswith("<url>"):
             url = result[5:].strip()
-            try:
-                message(http.get(url))
-            except http.HTTPError:
-                message("Could not fetch URL.")
+            response = requests.get(url)
+            if response.status_code != requests.codes.ok:
+                message("Failed to fetch resource.")
+            else:
+                message(response.text)
         else:
             message(result)
 
 
+@asyncio.coroutine
 @hook.command(autohelp=False, permissions=["listfactoids"])
-def listfactoids(reply):
+def listfactoids(notice):
+    """- lists all available factoids"""
     reply_text = []
     reply_text_length = 0
     for word in factoid_cache.keys():
         added_length = len(word) + 2
         if reply_text_length + added_length > 400:
-            reply(", ".join(reply_text))
+            notice(", ".join(reply_text))
             reply_text = []
             reply_text_length = 0
         else:
             reply_text.append(word)
             reply_text_length += added_length
-    return ", ".join(reply_text)
+    notice(", ".join(reply_text))
