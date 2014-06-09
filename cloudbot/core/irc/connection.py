@@ -199,13 +199,7 @@ class Connection:
         """
 
         if not self.connected:
-<<<<<<< Updated upstream
-            raise ValueError("Connection must be connected to irc server to use send")
-        self.logger.info("[{}] >> {}".format(self.readable_name, string))
-        self.loop.call_soon_threadsafe(asyncio.async, self.output_queue.put(string))
-=======
             raise ValueError("Connection must be connected to irc server to use cmd")
         if params is None:
             params = []
         self.loop.call_soon_threadsafe(asyncio.async, self.protocol.send_message(command, params))
->>>>>>> Stashed changes
