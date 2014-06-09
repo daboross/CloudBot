@@ -148,11 +148,8 @@ class Connection:
             self._handle_generic(message)
 
     def _handle_generic(self, message):
-        # TODO: revamp BaseEvent to take an IRCMessage? Or make the IrcMessage just go into the
-        # event_queue and make the Event later?
-        event = BaseEvent(conn=self.botconn, irc_raw=line, irc_prefix=prefix, irc_command=command,
-                              irc_paramlist=param_list, irc_message=last_param, nick=nick, user=user, host=host,
-                              mask=mask)
+        # TODO: make BaseEvent work again!
+        event = BaseEvent(conn=self.botconn, irc_message=message)
         self.event_queue.put_nowait(event)
 
     def stop(self):
