@@ -16,22 +16,13 @@ class BaseEvent:
     :type mask: str
     """
 
-    def __init__(self, bot=None, conn=None, hook=None, base_event=None, irc_raw=None, irc_prefix=None, irc_command=None,
-                 irc_paramlist=None, irc_message=None, nick=None, user=None, host=None, mask=None):
+    def __init__(self, bot=None, conn=None, hook=None, base_event=None, irc_message=None):
         """
         :type bot: cloudbot.core.bot.CloudBot
         :type conn: cloudbot.core.irc.BotConnection
         :type hook: cloudbot.core.pluginmanager.Hook
         :type base_event: cloudbot.core.events.BaseEvent
-        :type irc_raw: str
-        :type irc_prefix: str
-        :type irc_command: str
-        :type irc_paramlist: list[str]
-        :type irc_message: str
-        :type nick: str
-        :type user: str
-        :type host: str
-        :type mask: str
+        :type irc_message: cloudbot.core.irc.Protocol.IrcMessage
         """
         self.bot = bot
         self.conn = conn
@@ -192,9 +183,7 @@ class CommandEvent(BaseEvent):
     :type triggered_command: str
     """
 
-    def __init__(self, bot=None, conn=None, text=None, triggered_command=None, hook=None, base_event=None, irc_raw=None,
-                 irc_prefix=None, irc_command=None, irc_paramlist=None, irc_message=None, nick=None, user=None,
-                 host=None, mask=None):
+    def __init__(self, bot=None, conn=None, text=None, triggered_command=None, hook=None, base_event=None, irc_message=None):
         """
         :type bot: cloudbot.core.bot.CloudBot
         :type conn: cloudbot.core.irc.BotConnection
@@ -202,19 +191,9 @@ class CommandEvent(BaseEvent):
         :type text: str
         :type triggered_command: str
         :type base_event: cloudbot.core.events.BaseEvent
-        :type irc_raw: str
-        :type irc_prefix: str
-        :type irc_command: str
-        :type irc_paramlist: list[str]
-        :type irc_message: str
-        :type nick: str
-        :type user: str
-        :type host: str
-        :type mask: str
+        :type irc_message: cloudbot.core.irc.Protocol.IrcMessage
         """
-        super().__init__(bot=bot, conn=conn, hook=hook, base_event=base_event, irc_raw=irc_raw, irc_prefix=irc_prefix,
-                         irc_command=irc_command, irc_paramlist=irc_paramlist, irc_message=irc_message, nick=nick,
-                         user=user, host=host, mask=mask)
+        super().__init__(bot=bot, conn=conn, hook=hook, base_event=base_event, irc_message=irc_message)
         self.hook = hook
         self.text = text
         self.triggered_command = triggered_command
