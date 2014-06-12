@@ -9,11 +9,11 @@ class BaseEvent:
     :type bot: cloudbot.core.bot.CloudBot
     :type conn: cloudbot.core.connection.BotConnection
     :type hook: cloudbot.core.pluginmanager.Hook
+    :type irc_message: cloudbot.core.irc.protocol.IRCMessage
     :type irc_raw: str
-    :type irc_prefix: str
     :type irc_command: str
     :type irc_paramlist: str
-    :type irc_message: str
+    :type irc_text: str
     :type nick: str
     :type user: str
     :type host: str
@@ -47,22 +47,23 @@ class BaseEvent:
                 self.db = base_event.db
             if self.db_executor is None and base_event.db_executor is not None:
                 self.db_executor = base_event.db_executor
+            self.irc_message = irc_message
             self.irc_raw = base_event.irc_raw
-            self.irc_prefix = base_event.irc_prefix
             self.irc_command = base_event.irc_command
             self.irc_paramlist = base_event.irc_paramlist
-            self.irc_message = base_event.irc_message
+            self.irc_text = base_event.irc_text
             self.nick = base_event.nick
             self.user = base_event.user
             self.host = base_event.host
             self.mask = base_event.mask
         else:
+            self.irc_message = irc_message
+            self.irc_raw = irc_message.render()
+            self.irc_command = irc_message.command
+            self.irc_paramlist = irc_message.args
+
             # TODO: Get these from irc message somehow
-            self.irc_raw = None
-            self.irc_prefix = None
-            self.irc_command = None
-            self.irc_paramlist = None
-            self.irc_message = None
+            self.irc_text = None
             self.nick = None
             self.user = None
             self.host = None
@@ -327,7 +328,7 @@ class RegexEvent(BaseEvent):
     """
 
     def __init__(self, bot=None, conn=None, match=None, hook=None, base_event=None, irc_raw=None,
-                 irc_prefix=None, irc_command=None, irc_paramlist=None, irc_message=None, nick=None, user=None,
+                 irc_command=None, irc_paramlist=None, irc_message=None, nick=None, user=None,
                  host=None, mask=None):
         """
         :type bot: cloudbot.core.bot.CloudBot
@@ -336,7 +337,6 @@ class RegexEvent(BaseEvent):
         :type match: re.__Match
         :type base_event: cloudbot.core.events.BaseEvent
         :type irc_raw: str
-        :type irc_prefix: str
         :type irc_command: str
         :type irc_paramlist: list[str]
         :type irc_message: str
@@ -345,7 +345,7 @@ class RegexEvent(BaseEvent):
         :type host: str
         :type mask: str
         """
-        super().__init__(bot=bot, conn=conn, hook=hook, base_event=base_event, irc_raw=irc_raw, irc_prefix=irc_prefix,
+        super().__init__(bot=bot, conn=conn, hook=hook, base_event=base_event, irc_raw=irc_raw,
                          irc_command=irc_command, irc_paramlist=irc_paramlist, irc_message=irc_message, nick=nick,
                          user=user, host=host, mask=mask)
         self.match = match
