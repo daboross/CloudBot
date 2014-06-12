@@ -9,7 +9,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.schema import MetaData
 
 import cloudbot
-from cloudbot.core.irc.connection import Connection
+from cloudbot.core.irc.client import Connection
 from cloudbot.core.config import Config
 from cloudbot.core.reloader import PluginReloader
 from cloudbot.core.pluginmanager import PluginManager
