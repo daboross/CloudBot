@@ -12,7 +12,7 @@ class BaseEvent:
     :type irc_message: cloudbot.core.irc.protocol.IRCMessage
     :type irc_raw: str
     :type irc_command: str
-    :type irc_paramlist: str
+    :type irc_args: str
     :type irc_text: str
     :type nick: str
     :type user: str
@@ -50,7 +50,7 @@ class BaseEvent:
             self.irc_message = irc_message
             self.irc_raw = base_event.irc_raw
             self.irc_command = base_event.irc_command
-            self.irc_paramlist = base_event.irc_paramlist
+            self.irc_args = base_event.irc_args
             self.irc_text = base_event.irc_text
             self.nick = base_event.nick
             self.user = base_event.user
@@ -60,7 +60,7 @@ class BaseEvent:
             self.irc_message = irc_message
             self.irc_raw = irc_message.render()
             self.irc_command = irc_message.command
-            self.irc_paramlist = irc_message.args
+            self.irc_args = irc_message.args
 
             # TODO: Get these from irc message somehow
             self.irc_text = None
@@ -161,12 +161,12 @@ class BaseEvent:
         """
         :rtype: str
         """
-        if self.irc_paramlist:
-            if self.irc_paramlist[0].lower() == self.conn.nick.lower():
+        if self.irc_args:
+            if self.irc_args[0].lower() == self.conn.nick.lower():
                 # this is a private message - set the nick to the sender's nick
                 return self.nick.lower()
             else:
-                return self.irc_paramlist[0].lower()
+                return self.irc_args[0].lower()
         else:
             return None
 
