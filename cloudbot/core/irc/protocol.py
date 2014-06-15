@@ -1,13 +1,14 @@
 import asyncio
+import logging
 import re
 
+logger = logging.getLogger("cloudbot")
 
 class IRCProtocol(asyncio.Protocol):
-    def __init__(self, loop, logger, reconnect, readable_name, charset='utf8'):
+    def __init__(self, loop, reconnect, readable_name, charset='utf8'):
         self.message_queue = asyncio.Queue(loop=loop)
         self.loop = loop
         self.charset = charset
-        self.logger = logger
 
         # function to call to reconnect
         self.reconnect = reconnect
@@ -41,14 +42,14 @@ class IRCProtocol(asyncio.Protocol):
         if exc is None:
             # we've been closed intentionally, so don't reconnect
             return
-        self.logger.exception("[{}] Connection lost.".format(self.readable_name))
+        logger.exception("[{}] Connection lost.".format(self.readable_name))
         asyncio.async(self.reconnect(), loop=self.loop)
 
     def eof_received(self):
         self._connected = False
         # create a new connected_future for when we are connected.
         self._connected_future = asyncio.Future()
-        self.logger.info("[{}] EOF Received, reconnecting.".format(self.readable_name))
+        logger.info("[{}] EOF Received, reconnecting.".format(self.readable_name))
         asyncio.async(self.reconnect(), loop=self.loop)
         return True
 

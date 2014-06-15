@@ -80,7 +80,7 @@ def del_factoid(async, db, word):
 
 
 @asyncio.coroutine
-@hook.command(["r", "remember"], permissions=["addfactoid"])
+@hook.command("r", "remember", permissions=["addfactoid"])
 def remember(text, nick, db, notice, async):
     """<word> [+]<data> - remembers <data> with <word> - add + to <data> to append"""
 
@@ -109,7 +109,7 @@ def remember(text, nick, db, notice, async):
 
 
 @asyncio.coroutine
-@hook.command(["f", "forget"], permissions=["delfactoid"])
+@hook.command("f", "forget", permissions=["delfactoid"])
 def forget(text, db, async, notice):
     """<word> - forgets previously remembered <word>"""
 

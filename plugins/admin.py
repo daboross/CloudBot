@@ -5,7 +5,7 @@ from cloudbot import hook
 
 
 @asyncio.coroutine
-@hook.command(["groups", "listgroups", "permgroups"], permissions=["permissions_users"], autohelp=False)
+@hook.command("groups", "listgroups", "permgroups", permissions=["permissions_users"], autohelp=False)
 def get_permission_groups(conn):
     """- lists all valid groups
     :type conn: cloudbot.core.connection.BotConnection
@@ -199,28 +199,29 @@ def add_permissions_user(text, conn, bot, notice, reply):
         permission_manager.reload()
 
 
-@hook.command(["stop", "quit"], permissions=["botcontrol"], autohelp=False)
+@asyncio.coroutine
+@hook.command("stop", "quit", permissions=["botcontrol"], autohelp=False)
 def stop(text, bot):
     """[reason] - stops me with [reason] as its quit message.
     :type text: str
-    :type bot: core.bot.CloudBot
+    :type bot: cloudbot.core.bot.CloudBot
     """
     if text:
-        bot.stop(reason=text)
+        yield from bot.stop(reason=text)
     else:
-        bot.stop()
+        yield from bot.stop()
 
-
+@asyncio.coroutine
 @hook.command(permissions=["botcontrol"], autohelp=False)
 def restart(text, bot):
     """[reason] - restarts me with [reason] as its quit message.
     :type text: str
-    :type bot: core.bot.CloudBot
+    :type bot: cloudbot.core.bot.CloudBot
     """
     if text:
-        bot.restart(reason=text)
+        yield from bot.restart(reason=text)
     else:
-        bot.restart()
+        yield from bot.restart()
 
 
 @asyncio.coroutine
@@ -321,7 +322,7 @@ def say(text, conn, chan):
 
 
 @asyncio.coroutine
-@hook.command(["message", "sayto"], permissions=["botcontrol"])
+@hook.command("message", "sayto", permissions=["botcontrol"])
 def message(text, conn):
     """<name> <message> - says <message> to <name>
     :type text: str
@@ -334,7 +335,7 @@ def message(text, conn):
 
 
 @asyncio.coroutine
-@hook.command(["me", "act"], permissions=["botcontrol"])
+@hook.command("me", "act", permissions=["botcontrol"])
 def me(text, conn, chan):
     """[#channel] <action> - acts out <action> in a [#channel], or in the current channel of none is specified
     :type text: str

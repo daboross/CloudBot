@@ -30,7 +30,7 @@ exchanges = {
 
 ## HOOK FUNCTIONS
 
-@hook.command(["btc", "bitcoin"], autohelp=False)
+@hook.command("btc", "bitcoin", autohelp=False)
 def bitcoin(text, notice):
     """[mtgox|bitpay|coinbase|bitstamp] - gets bitcoin exchange rate using <exchange>, defaulting to blockchain
     :type text: str
@@ -55,7 +55,7 @@ def bitcoin(text, notice):
     return func(response.json())
 
 
-@hook.command(["ltc", "litecoin"], autohelp=False)
+@hook.command("ltc", "litecoin", autohelp=False)
 def litecoin(message):
     """- gets litecoin exchange rate from BTC-E"""
     response = requests.get("https://btc-e.com/api/2/ltc_usd/ticker")

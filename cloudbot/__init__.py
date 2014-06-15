@@ -1,3 +1,10 @@
+import sys
+
+# check python version
+if sys.version_info < (3, 4, 0):
+    print("CloudBot3 requires Python 3.4 or newer.")
+    sys.exit(1)
+
 import json
 import logging.config
 import logging
@@ -7,7 +14,9 @@ from .core.irc import client, protocol
 from .core import bot, config, permissions, pluginmanager, events
 from .util import botvars, bucket, formatting, hook, http, textgen, timeformat, timesince, urlnorm, web
 
-__all__ = ["core", "util", "bot", "client.py", "config", "permissions", "pluginmanager", "events", "botvars", "bucket",
+__version__ = "0.1.1.dev0"
+
+__all__ = ["core", "util", "bot", "client", "config", "permissions", "pluginmanager", "events", "botvars", "bucket",
            "formatting", "hook", "http", "textgen", "timeformat", "timesince", "urlnorm", "web", "dev_mode"]
 
 

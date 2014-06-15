@@ -1,7 +1,10 @@
 import asyncio
+import logging
 import concurrent.futures
 
 from cloudbot.util.formatting import FormattedString
+
+logger = logging.getLogger("cloudbot")
 
 
 class BaseEvent:
@@ -84,7 +87,7 @@ class BaseEvent:
             raise ValueError("event.hook is required to prepare an event")
 
         if "db" in self.hook.required_args:
-            self.bot.logger.debug("Opening database session for {}:threaded=False".format(self.hook.description))
+            logger.debug("Opening database session for {}:threaded=False".format(self.hook.description))
 
             # we're running a coroutine hook with a db, so initialise an executor pool
             self.db_executor = concurrent.futures.ThreadPoolExecutor(1)
@@ -105,7 +108,7 @@ class BaseEvent:
             raise ValueError("event.hook is required to prepare an event")
 
         if "db" in self.hook.required_args:
-            self.bot.logger.debug("Opening database session for {}:threaded=True".format(self.hook.description))
+            logger.debug("Opening database session for {}:threaded=True".format(self.hook.description))
 
             self.db = self.bot.db_session()
 
@@ -123,7 +126,7 @@ class BaseEvent:
             raise ValueError("event.hook is required to close an event")
 
         if self.db is not None:
-            self.bot.logger.debug("Closing database session for {}:threaded=False".format(self.hook.description))
+            logger.debug("Closing database session for {}:threaded=False".format(self.hook.description))
             # be sure the close the database in the database executor, as it is only accessable in that one thread
             yield from self.async(self.db.close)
             self.db = None
@@ -140,7 +143,7 @@ class BaseEvent:
         if self.hook is None:
             raise ValueError("event.hook is required to close an event")
         if self.db is not None:
-            self.bot.logger.debug("Closing database session for {}:threaded=True".format(self.hook.description))
+            logger.debug("Closing database session for {}:threaded=True".format(self.hook.description))
             self.db.close()
             self.db = None
 
@@ -186,7 +189,7 @@ class BaseEvent:
 
     @property
     def logger(self):
-        return self.bot.logger
+        return logging.getLogger("cloudbot")
 
     def message(self, message, target=None):
         """sends a message to a specific or current channel/user
@@ -292,7 +295,8 @@ class CommandEvent(BaseEvent):
     :type triggered_command: str
     """
 
-    def __init__(self, bot=None, conn=None, text=None, triggered_command=None, hook=None, base_event=None, irc_message=None):
+    def __init__(self, bot=None, conn=None, text=None, triggered_command=None, hook=None, base_event=None,
+                 irc_message=None):
         """
         :type bot: cloudbot.core.bot.CloudBot
         :type conn: cloudbot.core.irc.BotConnection

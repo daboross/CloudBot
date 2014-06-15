@@ -46,7 +46,7 @@ def format_output(h, definition, show_examples):
     return result
 
 
-@hook.command(["dictionary", "define"])
+@hook.command("dictionary", "define")
 def define(text):
     """<word> - fetches definition of <word>
     :type text: str
@@ -78,7 +78,7 @@ def define(text):
     return result
 
 
-@hook.command(["e", "etymology"])
+@hook.command("e", "etymology")
 def etymology(text):
     """<word> - retrieves the etymology of <word>
     :type text: str

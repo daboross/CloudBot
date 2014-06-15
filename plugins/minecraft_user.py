@@ -1,36 +1,52 @@
+from enum import Enum
+
+import requests
 import json
+import re
 
 from cloudbot import hook, http
 
-NAME_URL = "https://account.minecraft.net/buy/frame/checkName/{}"
+
+# I need TREE apis, all on separate domains, to get basic account info
+# what the fuck, mojang?
+UUID_URL = "https://sessionserver.mojang.com/session/minecraft/profile/{}"
+PROFILE_URL = "https://api.mojang.com/profiles/page/1"
 PAID_URL = "http://www.minecraft.net/haspaid.jsp"
+
 
 
 class McuError(Exception):
     pass
 
 
-def get_status(name):
-    """ takes a name and returns status """
-    try:
-        name_encoded = http.quote_plus(name)
-        response = http.get(NAME_URL.format(name_encoded))
-    except (http.URLError, http.HTTPError) as e:
-        raise McuError("Could not get name status: {}".format(e))
+def get_name(uuid):
+    """ takes a UUID and finds the associated name """
+    uuid_encoded = http.quote_plus(uuid)
 
-    if "OK" in response:
-        return "free"
-    elif "TAKEN" in response:
-        return "taken"
-    elif "invalid characters" in response:
-        return "invalid"
+    try:
+        request = requests.get(UUID_URL.format(uuid_encoded))
+    except (requests.exceptions.HTTPError, requests.exceptions.ConnectionError) as e:
+        raise McuError("Could not get name from UUID: {}".format(e))
+
+    # get the JSON data
+    try:
+        results = request.json()
+    except ValueError:
+        raise McuError("Could not get name from UUID")
+
+    print(results)
+    # check for errors
+    if "error" in results:
+        return False
+    else:
+        return results["name"]
 
 
 def get_profile(name):
     profile = {}
 
     # form the profile request
-    request = {
+    payload = {
         "name": name,
         "agent": "minecraft"
     }
@@ -38,26 +54,32 @@ def get_profile(name):
     # submit the profile request
     try:
         headers = {"Content-Type": "application/json"}
-        r = http.get_json(
-            'https://api.mojang.com/profiles/page/1',
-            post_data=json.dumps(request).encode('utf-8'),
-            headers=headers
-        )
-    except (http.URLError, http.HTTPError) as e:
+        request = requests.post(PROFILE_URL, data=json.dumps(payload).encode('utf-8'), headers=headers)
+    except (requests.exceptions.HTTPError, requests.exceptions.ConnectionError) as e:
         raise McuError("Could not get profile status: {}".format(e))
 
-    user = r["profiles"][0]
+    # get the JSON data
+    try:
+        results = request.json()
+    except ValueError:
+        raise McuError("Could not parse profile status")
+
+    if results["size"] == 0:
+        return False
+
+    user = results["profiles"][0]
     profile["name"] = user["name"]
     profile["id"] = user["id"]
 
     profile["legacy"] = user.get("legacy", False)
 
     try:
-        response = http.get(PAID_URL, user=name)
-    except (http.URLError, http.HTTPError) as e:
+        params = {'user': name}
+        response = requests.get(PAID_URL, params=params)
+    except (requests.exceptions.HTTPError, requests.exceptions.ConnectionError) as e:
         raise McuError("Could not get payment status: {}".format(e))
 
-    if "true" in response:
+    if "true" in response.text:
         profile["paid"] = True
     else:
         profile["paid"] = False
@@ -65,36 +87,33 @@ def get_profile(name):
     return profile
 
 
-@hook.command(["mcuser", "mcpaid", "haspaid"])
+@hook.command("mcuser", "mcpaid", "haspaid")
 def mcuser(text):
     """<username> - gets information about the Minecraft user <account>"""
     user = text.strip()
 
+    cleaned = user.replace('-', '')
+    if re.search(r'[0-9a-f]{32}\Z', cleaned, re.I):
+        user = get_name(cleaned)
+
+        # UUID could not be matched
+        if not user:
+            return "Could not find an account using the UUID"
+
     try:
-        # get status of name (does it exist?)
-        name_status = get_status(user)
+        # get information about user
+        profile = get_profile(user)
     except McuError as e:
-        return e
+        return "Error: {}".format(e)
 
-    if name_status == "taken":
-        try:
-            # get information about user
-            profile = get_profile(user)
-        except McuError as e:
-            return "Error: {}".format(e)
-
-        profile["lt"] = ", legacy" if profile["legacy"] else ""
-
-        if profile["paid"]:
-            return "The account \x02{name}\x02 ({id}{lt}) exists. It is a \x02paid\x02" \
-                   " account.".format(**profile)
-        else:
-            return "The account \x02{name}\x02 ({id}{lt}) exists. It \x034\x02is NOT\x02\x0f a paid" \
-                   " account.".format(**profile)
-    elif name_status == "free":
+    if not profile:
         return "The account \x02{}\x02 does not exist.".format(user)
-    elif name_status == "invalid":
-        return "The name \x02{}\x02 contains invalid characters.".format(user)
+
+    profile["lt"] = ", legacy" if profile["legacy"] else ""
+
+    if profile["paid"]:
+        return 'The account \x02{name}\x02 ({id}{lt}) exists. It is a \x02paid\x02' \
+               ' account.'.format(**profile)
     else:
-        # if you see this, panic
-        return "The account \x02{}\x02 does not exist.".format(user)
+        return 'The account \x02{name}\x02 ({id}{lt}) exists. It \x034\x02is NOT\x02\x0f a paid' \
+               ' account.'.format(**profile)

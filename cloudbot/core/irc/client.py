@@ -1,11 +1,14 @@
 from _ssl import PROTOCOL_SSLv23
 import asyncio
+import logging
 import ssl
 from ssl import SSLContext
 
 from cloudbot.core.permissions import PermissionManager
 from cloudbot.core.irc.protocol import IRCProtocol
 from cloudbot.core.events import BaseEvent
+
+logger = logging.getLogger("cloudbot")
 
 
 class Connection:
@@ -26,7 +29,7 @@ class Connection:
     :type protocol: cloudbot.core.irc.protocol.IRCProtocol
     """
 
-    def __init__(self, bot, name, server, nick, port=6667, use_ssl=False, logger=None, channels=None, config=None,
+    def __init__(self, bot, name, server, nick, port=6667, use_ssl=False, channels=None, config=None,
                  readable_name=None):
         """
         :type bot: cloudbot.core.bot.CloudBot
@@ -60,7 +63,6 @@ class Connection:
         self.ssl = use_ssl
         self.server = server
         self.port = port
-        self.logger = logger
         self.nick = nick
         self.vars = {}
         self.history = {}
@@ -86,6 +88,8 @@ class Connection:
         self.timeout = 300
 
         self.connected = False
+        # if we've quit
+        self._quit = False
 
     @asyncio.coroutine
     def connect(self):
@@ -94,14 +98,15 @@ class Connection:
         """
         # connect to the irc server
         if self.connected:
-            self.logger.info("[{}] Reconnecting".format(self.readable_name))
+            logger.info("[{}] Reconnecting".format(self.readable_name))
             self.transport.close()
         else:
             self.connected = True
-            self.logger.info("[{}] Connecting".format(self.readable_name))
+            logger.info("[{}] Connecting".format(self.readable_name))
 
         self.transport, self.protocol = yield from self.loop.create_connection(
-            lambda: IRCProtocol(self.loop, self.logger, self.connect, self.readable_name), host=self.server, port=self.port, ssl=self.ssl_context,
+            lambda: IRCProtocol(self.loop, self.connect, self.readable_name), host=self.server,
+            port=self.port, ssl=self.ssl_context,
         )
 
         # send the password, nick, and user
@@ -140,7 +145,18 @@ class Connection:
         event = BaseEvent(conn=self, irc_message=message)
         asyncio.async(self.bot.process(event))
 
-    def stop(self):
+    def quit(self, reason=None):
+        if self._quit:
+            return
+        self._quit = True
+        if reason:
+            self.cmd("QUIT", [reason])
+        else:
+            self.cmd("QUIT")
+
+    def close(self):
+        if not self._quit:
+            self.quit()
         if not self.connected:
             return
         self.transport.close()

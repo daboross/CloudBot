@@ -4,6 +4,7 @@ import logging
 import re
 import os
 import gc
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.schema import MetaData
@@ -16,7 +17,7 @@ from cloudbot.core.pluginmanager import PluginManager
 from cloudbot.core.events import BaseEvent, CommandEvent, RegexEvent
 from cloudbot.util import botvars, formatting
 
-logger_initialized = False
+logger = logging.getLogger("cloudbot")
 
 
 def clean_name(n):
@@ -59,29 +60,28 @@ class CloudBot:
         # stores each bot server connection
         self.connections = []
 
-        # set up logging
-        self.logger = logging.getLogger("cloudbot")
-        self.logger.debug("Logging system initialised.")
+        # for plugins
+        self.logger = logger
 
         # declare and create data folder
         self.data_dir = os.path.abspath('data')
         if not os.path.exists(self.data_dir):
-            self.logger.debug("Data folder not found, creating.")
+            logger.debug("Data folder not found, creating.")
             os.mkdir(self.data_dir)
 
         # set up config
         self.config = Config(self)
-        self.logger.debug("Config system initialised.")
+        logger.debug("Config system initialised.")
 
         # log developer mode
         if cloudbot.dev_mode.get("plugin_reloading"):
-            self.logger.info("Enabling developer option: plugin reloading.")
+            logger.info("Enabling developer option: plugin reloading.")
         if cloudbot.dev_mode.get("config_reloading"):
-            self.logger.info("Enabling developer option: config reloading.")
+            logger.info("Enabling developer option: config reloading.")
         if cloudbot.dev_mode.get("console_debug"):
-            self.logger.info("Enabling developer option: console debug.")
+            logger.info("Enabling developer option: console debug.")
         if cloudbot.dev_mode.get("file_debug"):
-            self.logger.info("Enabling developer option: file debug")
+            logger.info("Enabling developer option: file debug")
 
         # setup db
         db_path = self.config.get('database', 'sqlite:///cloudbot.db')
@@ -91,10 +91,10 @@ class CloudBot:
         self.db_metadata = MetaData()
         # set botvars.metadata so plugins can access when loading
         botvars.metadata = self.db_metadata
-        self.logger.debug("Database system initialised.")
+        logger.debug("Database system initialised.")
 
         # Bot initialisation complete
-        self.logger.debug("Bot setup completed.")
+        logger.debug("Bot setup completed.")
 
         # create bot connections
         self.create_connections()
@@ -126,44 +126,46 @@ class CloudBot:
             port = conf['connection'].get('port', 6667)
 
             self.connections.append(Connection(self, name, server, nick, config=conf,
-                                               port=port, logger=self.logger, channels=conf['channels'],
+                                               port=port, channels=conf['channels'],
                                                use_ssl=conf['connection'].get('ssl', False),
                                                readable_name=readable_name))
-            self.logger.debug("[{}] Created connection.".format(readable_name))
+            logger.debug("[{}] Created connection.".format(readable_name))
 
+    @asyncio.coroutine
     def stop(self, reason=None):
         """quits all networks and shuts the bot down"""
-        self.logger.info("Stopping bot.")
+        logger.info("Stopping bot.")
 
         if cloudbot.dev_mode.get("config_reloading"):
-            self.logger.debug("Stopping config reloader.")
+            logger.debug("Stopping config reloader.")
             self.config.stop()
 
         if cloudbot.dev_mode.get("plugin_reloading"):
-            self.logger.debug("Stopping plugin reloader.")
+            logger.debug("Stopping plugin reloader.")
             self.reloader.stop()
 
         for connection in self.connections:
             if not connection.connected:
                 # Don't close a connection that hasn't connected
                 continue
-            self.logger.debug("[{}] Closing connection.".format(connection.readable_name))
+            logger.debug("[{}] Closing connection.".format(connection.readable_name))
 
-            if reason:
-                connection.cmd("QUIT", [reason])
-            else:
-                connection.cmd("QUIT")
+            connection.quit(reason)
 
-            connection.stop()
+        yield from asyncio.sleep(0.1)  # wait for 'QUIT' calls to take affect
+
+        for connection in self.connections:
+            connection.close()
 
         self.running = False
         # Give the stopped_future a result, so that run() will exit
         self.stopped_future.set_result(None)
 
+    @asyncio.coroutine
     def restart(self, reason=None):
         """shuts the bot down and restarts it"""
         self.do_restart = True
-        self.stop(reason)
+        yield from self.stop(reason)
 
     @asyncio.coroutine
     def _load_plugins(self):
