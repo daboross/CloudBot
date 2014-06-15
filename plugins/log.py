@@ -68,13 +68,13 @@ def beautify(event):
         return formats["default"].format(server=event.conn.readable_name, irc_raw=event.irc_raw)
 
     args = {
-        "server": event.conn.readable_name, "param_tail": " ".join(event.irc_paramlist[1:]),
+        "server": event.conn.readable_name, "param_tail": " ".join(event.irc_args[1:]),
         "message": irc_color_re.sub("", event.irc_message), "nick": event.nick, "chan": event.chan,
         "user": event.user, "host": event.host
     }
 
-    _len = len(event.irc_paramlist)
-    for n, p in enumerate(event.irc_paramlist):
+    _len = len(event.irc_args)
+    for n, p in enumerate(event.irc_args):
         args["param" + str(n)] = p
         args["param_" + str(abs(n - _len))] = p
 

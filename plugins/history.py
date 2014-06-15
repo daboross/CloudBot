@@ -23,7 +23,7 @@ def track_seen(event, db, conn):
     """ Tracks messages for the .seen command
     :type event: cloudbot.core.events.BaseEvent
     :type db: sqlalchemy.orm.Session
-    :type conn: cloudbot.core.connection.BotConnection
+    :type conn: cloudbot.core.irc.client.Connection
     """
     db_init(db, conn)
     # keep private messages private
@@ -40,7 +40,7 @@ def track_seen(event, db, conn):
 def track_history(event, message_time, conn):
     """
     :type event: cloudbot.core.events.BaseEvent
-    :type conn: cloudbot.core.connection.BotConnection
+    :type conn: cloudbot.core.irc.client.Connection
     """
     try:
         history = conn.history[event.chan]
@@ -57,7 +57,7 @@ def chat_tracker(event, db, conn):
     """
     :type db: sqlalchemy.orm.Session
     :type event: cloudbot.core.events.BaseEvent
-    :type conn: cloudbot.core.connection.BotConnection
+    :type conn: cloudbot.core.irc.client.Connection
     """
     message_time = time.time()
     track_seen(event, db, conn)
@@ -69,7 +69,7 @@ def chat_tracker(event, db, conn):
 def resethistory(event, conn):
     """- resets chat history for the current channel
     :type event: cloudbot.core.events.BaseEvent
-    :type conn: cloudbot.core.connection.BotConnection
+    :type conn: cloudbot.core.irc.client.Connection
     """
     try:
         conn.history[event.chan].clear()
@@ -84,7 +84,7 @@ def seen(text, nick, chan, db, event, conn):
     """<nick> <channel> - tells when a nickname was last in active in one of my channels
     :type db: sqlalchemy.orm.Session
     :type event: cloudbot.core.events.BaseEvent
-    :type conn: cloudbot.core.connection.BotConnection
+    :type conn: cloudbot.core.irc.client.Connection
     """
 
     if event.conn.nick.lower() == text.lower():

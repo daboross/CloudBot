@@ -10,13 +10,12 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.schema import MetaData
 
 import cloudbot
-from cloudbot.core.connection import BotConnection
+from cloudbot.core.irc.client import Connection
 from cloudbot.core.config import Config
 from cloudbot.core.reloader import PluginReloader
 from cloudbot.core.pluginmanager import PluginManager
 from cloudbot.core.events import BaseEvent, CommandEvent, RegexEvent
 from cloudbot.util import botvars, formatting
-
 
 logger = logging.getLogger("cloudbot")
 
@@ -126,10 +125,10 @@ class CloudBot:
             server = conf['connection']['server']
             port = conf['connection'].get('port', 6667)
 
-            self.connections.append(BotConnection(self, name, server, nick, config=conf,
-                                                  port=port, channels=conf['channels'],
-                                                  use_ssl=conf['connection'].get('ssl', False),
-                                                  readable_name=readable_name))
+            self.connections.append(Connection(self, name, server, nick, config=conf,
+                                               port=port, channels=conf['channels'],
+                                               use_ssl=conf['connection'].get('ssl', False),
+                                               readable_name=readable_name))
             logger.debug("[{}] Created connection.".format(readable_name))
 
     @asyncio.coroutine

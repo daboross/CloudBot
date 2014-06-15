@@ -10,12 +10,13 @@ import logging.config
 import logging
 import os
 
-from .core import bot, connection, config, permissions, pluginmanager, events
+from .core.irc import client, protocol
+from .core import bot, config, permissions, pluginmanager, events
 from .util import botvars, bucket, formatting, hook, http, textgen, timeformat, timesince, urlnorm, web
 
 __version__ = "0.1.1.dev0"
 
-__all__ = ["core", "util", "bot", "connection", "config", "permissions", "pluginmanager", "events", "botvars", "bucket",
+__all__ = ["core", "util", "bot", "client", "config", "permissions", "pluginmanager", "events", "botvars", "bucket",
            "formatting", "hook", "http", "textgen", "timeformat", "timesince", "urlnorm", "web", "dev_mode"]
 
 

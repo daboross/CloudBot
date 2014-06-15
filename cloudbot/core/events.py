@@ -10,13 +10,13 @@ logger = logging.getLogger("cloudbot")
 class BaseEvent:
     """
     :type bot: cloudbot.core.bot.CloudBot
-    :type conn: cloudbot.core.connection.BotConnection
+    :type conn: cloudbot.core.irc.client.Connection
     :type hook: cloudbot.core.pluginmanager.Hook
+    :type irc_message: cloudbot.core.irc.protocol.IRCMessage
     :type irc_raw: str
-    :type irc_prefix: str
     :type irc_command: str
-    :type irc_paramlist: str
-    :type irc_message: str
+    :type irc_args: str
+    :type irc_text: str
     :type nick: str
     :type user: str
     :type host: str
@@ -25,22 +25,13 @@ class BaseEvent:
     :type db_executor: concurrent.futures.ThreadPoolExecutor
     """
 
-    def __init__(self, bot=None, conn=None, hook=None, base_event=None, irc_raw=None, irc_prefix=None, irc_command=None,
-                 irc_paramlist=None, irc_message=None, nick=None, user=None, host=None, mask=None):
+    def __init__(self, bot=None, conn=None, hook=None, base_event=None, irc_message=None):
         """
         :type bot: cloudbot.core.bot.CloudBot
-        :type conn: cloudbot.core.irc.BotConnection
+        :type conn: cloudbot.core.irc.client.Connection
         :type hook: cloudbot.core.pluginmanager.Hook
         :type base_event: cloudbot.core.events.BaseEvent
-        :type irc_raw: str
-        :type irc_prefix: str
-        :type irc_command: str
-        :type irc_paramlist: list[str]
-        :type irc_message: str
-        :type nick: str
-        :type user: str
-        :type host: str
-        :type mask: str
+        :type irc_message: cloudbot.core.irc.protocol.IRCMessage
         """
         self.db = None
         self.db_executor = None
@@ -59,25 +50,27 @@ class BaseEvent:
                 self.db = base_event.db
             if self.db_executor is None and base_event.db_executor is not None:
                 self.db_executor = base_event.db_executor
+            self.irc_message = irc_message
             self.irc_raw = base_event.irc_raw
-            self.irc_prefix = base_event.irc_prefix
             self.irc_command = base_event.irc_command
-            self.irc_paramlist = base_event.irc_paramlist
-            self.irc_message = base_event.irc_message
+            self.irc_args = base_event.irc_args
+            self.irc_text = base_event.irc_text
             self.nick = base_event.nick
             self.user = base_event.user
             self.host = base_event.host
             self.mask = base_event.mask
         else:
-            self.irc_raw = irc_raw
-            self.irc_prefix = irc_prefix
-            self.irc_command = irc_command
-            self.irc_paramlist = irc_paramlist
             self.irc_message = irc_message
-            self.nick = nick
-            self.user = user
-            self.host = host
-            self.mask = mask
+            self.irc_raw = irc_message.render()
+            self.irc_command = irc_message.command
+            self.irc_args = irc_message.args
+
+            # TODO: Get these from irc message somehow
+            self.irc_text = None
+            self.nick = None
+            self.user = None
+            self.host = None
+            self.mask = None
 
     @asyncio.coroutine
     def prepare(self):
@@ -98,7 +91,7 @@ class BaseEvent:
 
             # we're running a coroutine hook with a db, so initialise an executor pool
             self.db_executor = concurrent.futures.ThreadPoolExecutor(1)
-            # be sure to initialize the db in the database executor, so it will be accesssible in that thread.
+            # be sure to initialize the db in the database executor, so it will be accessible in that thread.
             self.db = yield from self.async(self.bot.db_session)
 
     def prepare_threaded(self):
@@ -134,7 +127,7 @@ class BaseEvent:
 
         if self.db is not None:
             logger.debug("Closing database session for {}:threaded=False".format(self.hook.description))
-            # be sure the close the database in the database executor, as it is only accessable in that one thread
+            # be sure the close the database in the database executor, as it is only accessible in that one thread
             yield from self.async(self.db.close)
             self.db = None
 
@@ -171,12 +164,12 @@ class BaseEvent:
         """
         :rtype: str
         """
-        if self.irc_paramlist:
-            if self.irc_paramlist[0].lower() == self.conn.nick.lower():
+        if self.irc_args:
+            if self.irc_args[0].lower() == self.conn.nick.lower():
                 # this is a private message - set the nick to the sender's nick
                 return self.nick.lower()
             else:
-                return self.irc_paramlist[0].lower()
+                return self.irc_args[0].lower()
         else:
             return None
 
@@ -302,9 +295,8 @@ class CommandEvent(BaseEvent):
     :type triggered_command: str
     """
 
-    def __init__(self, bot=None, conn=None, text=None, triggered_command=None, hook=None, base_event=None, irc_raw=None,
-                 irc_prefix=None, irc_command=None, irc_paramlist=None, irc_message=None, nick=None, user=None,
-                 host=None, mask=None):
+    def __init__(self, bot=None, conn=None, hook=None, text=None, triggered_command=None, base_event=None,
+                 irc_message=None):
         """
         :type bot: cloudbot.core.bot.CloudBot
         :type conn: cloudbot.core.irc.BotConnection
@@ -312,19 +304,9 @@ class CommandEvent(BaseEvent):
         :type text: str
         :type triggered_command: str
         :type base_event: cloudbot.core.events.BaseEvent
-        :type irc_raw: str
-        :type irc_prefix: str
-        :type irc_command: str
-        :type irc_paramlist: list[str]
-        :type irc_message: str
-        :type nick: str
-        :type user: str
-        :type host: str
-        :type mask: str
+        :type irc_message: cloudbot.core.irc.Protocol.IrcMessage
         """
-        super().__init__(bot=bot, conn=conn, hook=hook, base_event=base_event, irc_raw=irc_raw, irc_prefix=irc_prefix,
-                         irc_command=irc_command, irc_paramlist=irc_paramlist, irc_message=irc_message, nick=nick,
-                         user=user, host=host, mask=mask)
+        super().__init__(bot=bot, conn=conn, hook=hook, base_event=base_event, irc_message=irc_message)
         self.hook = hook
         self.text = text
         self.triggered_command = triggered_command
@@ -349,26 +331,14 @@ class RegexEvent(BaseEvent):
     :type match: re.__Match
     """
 
-    def __init__(self, bot=None, conn=None, match=None, hook=None, base_event=None, irc_raw=None,
-                 irc_prefix=None, irc_command=None, irc_paramlist=None, irc_message=None, nick=None, user=None,
-                 host=None, mask=None):
+    def __init__(self, bot=None, conn=None, hook=None, match=None, base_event=None, irc_message=None):
         """
         :type bot: cloudbot.core.bot.CloudBot
         :type conn: cloudbot.core.irc.BotConnection
         :type hook: cloudbot.core.pluginmanager.RegexHook
         :type match: re.__Match
         :type base_event: cloudbot.core.events.BaseEvent
-        :type irc_raw: str
-        :type irc_prefix: str
-        :type irc_command: str
-        :type irc_paramlist: list[str]
-        :type irc_message: str
-        :type nick: str
-        :type user: str
-        :type host: str
-        :type mask: str
+        :type irc_message: cloudbot.core.irc.protocol.IRCMessage
         """
-        super().__init__(bot=bot, conn=conn, hook=hook, base_event=base_event, irc_raw=irc_raw, irc_prefix=irc_prefix,
-                         irc_command=irc_command, irc_paramlist=irc_paramlist, irc_message=irc_message, nick=nick,
-                         user=user, host=host, mask=mask)
+        super().__init__(bot=bot, conn=conn, hook=hook, base_event=base_event, irc_message=irc_message)
         self.match = match
