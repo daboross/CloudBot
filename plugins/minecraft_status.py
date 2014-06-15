@@ -1,6 +1,7 @@
 import json
 
 from cloudbot import hook, http
+from cloudbot.util.formatting import FormattedString, Color, Bold
 
 
 @hook.command(autohelp=False)
@@ -30,15 +31,17 @@ def mcstatus():
             red.append(server)
 
     if green:
-        out = "\x033\x02Online\x02\x0f: " + ", ".join(green)
+        out = Bold.on(Color.green("Online: ")) + ", ".join(green)
         if yellow:
             out += " "
     if yellow:
-        out += "\x02Issues\x02: " + ", ".join(yellow)
+        out += Bold.on(Color.green("Issues: ")) + ", ".join(yellow)
         if red:
             out += " "
     if red:
-        out += "\x034\x02Offline\x02\x0f: " + ", ".join(red)
+        out += Bold.on(Color.green("Offline: ")) + ", ".join(red)
+
+    out = FormattedString(out).render()
 
     return "\x0f" + out.replace(".mojang.com", ".mj") \
         .replace(".minecraft.net", ".mc")

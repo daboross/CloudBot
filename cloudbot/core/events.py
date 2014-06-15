@@ -2,6 +2,8 @@ import asyncio
 import logging
 import concurrent.futures
 
+from cloudbot.util.formatting import FormattedString
+
 logger = logging.getLogger("cloudbot")
 
 
@@ -205,6 +207,10 @@ class BaseEvent:
             if self.chan is None:
                 raise ValueError("Target must be specified when chan is not assigned")
             target = self.chan
+
+        if isinstance(message, FormattedString):
+            message = message.render()
+
         self.conn.msg(target, message)
 
     def reply(self, message, target=None):
@@ -216,6 +222,9 @@ class BaseEvent:
             if self.chan is None:
                 raise ValueError("Target must be specified when chan is not assigned")
             target = self.chan
+
+        if isinstance(message, FormattedString):
+            message = message.render()
 
         if target == self.nick:
             self.conn.msg(target, message)
@@ -231,6 +240,9 @@ class BaseEvent:
             if self.chan is None:
                 raise ValueError("Target must be specified when chan is not assigned")
             target = self.chan
+
+        if isinstance(message, FormattedString):
+            message = message.render()
 
         self.conn.ctcp(target, "ACTION", message)
 
@@ -255,6 +267,9 @@ class BaseEvent:
             if self.nick is None:
                 raise ValueError("Target must be specified when nick is not assigned")
             target = self.nick
+
+        if isinstance(message, FormattedString):
+            message = message.render()
 
         self.conn.cmd('NOTICE', [target, message])
 
