@@ -1,4 +1,5 @@
 import asyncio
+import enum
 import glob
 import importlib
 import inspect
@@ -10,6 +11,7 @@ import sqlalchemy
 
 from cloudbot.event import Event
 from cloudbot.util import botvars
+from cloudbot.hook import _hook_name_to_hook
 
 logger = logging.getLogger("cloudbot")
 
@@ -28,14 +30,15 @@ def find_hooks(parent, module):
     sieve = []
     event = []
     onload = []
-    type_lists = {"command": command, "regex": regex, "irc_raw": raw, "sieve": sieve, "event": event, "onload": onload}
+    type_lists = {HookType.command: command, HookType.regex: regex, HookType.irc_raw: raw, HookType.sieve: sieve,
+                  HookType.event: event, HookType.onload: onload}
     for name, func in module.__dict__.items():
         if hasattr(func, "_cloudbot_hook"):
             # if it has cloudbot hook
             func_hooks = func._cloudbot_hook
 
             for hook_type, func_hook in func_hooks.items():
-                type_lists[hook_type].append(_hook_name_to_plugin[hook_type](parent, func_hook))
+                type_lists[hook_type].append(_hook_type_to_plugin[hook_type](parent, func_hook))
 
             # delete the hook to free memory
             del func._cloudbot_hook
@@ -409,13 +412,13 @@ class PluginManager:
         :type hook: cloudbot.plugin.Hook | cloudbot.plugin.CommandHook
         :rtype: bool
         """
-        if hook.type != "onload":  # we don't need sieves on onload hooks.
+        if hook.type is not HookType.onload:  # we don't need sieves on onload hooks.
             for sieve in self.bot.plugin_manager.sieves:
                 event = yield from self._sieve(sieve, event, hook)
                 if event is None:
                     return False
 
-        if hook.type == "command" and hook.auto_help and not event.text and hook.doc is not None:
+        if hook.type is HookType.command and hook.auto_help and not event.text and hook.doc is not None:
             event.notice_doc()
             return False
 
@@ -522,7 +525,7 @@ class Hook:
     """
     Each hook is specific to one function. This class is never used by itself, rather extended.
 
-    :type type; str
+    :type type: HookType
     :type plugin: Plugin
     :type function: callable
     :type function_name: str
@@ -532,14 +535,13 @@ class Hook:
     :type permissions: list[str]
     :type single_thread: bool
     """
+    type = None  # to be assigned in subclasses
 
-    def __init__(self, _type, plugin, func_hook):
+    def __init__(self, plugin, func_hook):
         """
-        :type _type: str
         :type plugin: Plugin
         :type func_hook: hook._Hook
         """
-        self.type = _type
         self.plugin = plugin
         self.function = func_hook.function
         self.function_name = self.function.__name__
@@ -567,7 +569,7 @@ class Hook:
 
     def __repr__(self):
         return "type: {}, plugin: {}, ignore_bots: {}, permissions: {}, single_thread: {}, threaded: {}".format(
-            self.type, self.plugin.title, self.ignore_bots, self.permissions, self.single_thread, self.threaded
+            self.type.name, self.plugin.title, self.ignore_bots, self.permissions, self.single_thread, self.threaded
         )
 
 
@@ -578,6 +580,7 @@ class CommandHook(Hook):
     :type doc: str
     :type auto_help: bool
     """
+    type = HookType.command
 
     def __init__(self, plugin, cmd_hook):
         """
@@ -592,7 +595,7 @@ class CommandHook(Hook):
         self.aliases.insert(0, self.name)  # make sure the name, or 'main alias' is in position 0
         self.doc = cmd_hook.doc
 
-        super().__init__("command", plugin, cmd_hook)
+        super().__init__(plugin, cmd_hook)
 
     def __repr__(self):
         return "Command[name: {}, aliases: {}, {}]".format(self.name, self.aliases[1:], Hook.__repr__(self))
@@ -605,6 +608,7 @@ class RegexHook(Hook):
     """
     :type regexes: set[re.__Regex]
     """
+    type = HookType.regex
 
     def __init__(self, plugin, regex_hook):
         """
@@ -613,7 +617,7 @@ class RegexHook(Hook):
         """
         self.regexes = regex_hook.regexes
 
-        super().__init__("regex", plugin, regex_hook)
+        super().__init__(plugin, regex_hook)
 
     def __repr__(self):
         return "Regex[regexes: [{}], {}]".format(", ".join(regex.pattern for regex in self.regexes),
@@ -627,13 +631,14 @@ class RawHook(Hook):
     """
     :type triggers: set[str]
     """
+    type = HookType.irc_raw
 
     def __init__(self, plugin, irc_raw_hook):
         """
         :type plugin: Plugin
         :type irc_raw_hook: cloudbot.util.hook._RawHook
         """
-        super().__init__("irc_raw", plugin, irc_raw_hook)
+        super().__init__(plugin, irc_raw_hook)
 
         self.triggers = irc_raw_hook.triggers
 
@@ -648,13 +653,14 @@ class RawHook(Hook):
 
 
 class SieveHook(Hook):
+    type = HookType.sieve
+
     def __init__(self, plugin, sieve_hook):
         """
         :type plugin: Plugin
         :type sieve_hook: cloudbot.util.hook._SieveHook
         """
-        # We don't want to thread sieves by default - this is retaining old behavior for compatibility
-        super().__init__("sieve", plugin, sieve_hook)
+        super().__init__(plugin, sieve_hook)
 
     def __repr__(self):
         return "Sieve[{}]".format(Hook.__repr__(self))
@@ -667,13 +673,14 @@ class EventHook(Hook):
     """
     :type types: set[cloudbot.event.EventType]
     """
+    type = HookType.event
 
     def __init__(self, plugin, event_hook):
         """
         :type plugin: Plugin
         :type event_hook: cloudbot.util.hook._EventHook
         """
-        super().__init__("event", plugin, event_hook)
+        super().__init__(plugin, event_hook)
 
         self.types = event_hook.types
 
@@ -686,12 +693,14 @@ class EventHook(Hook):
 
 
 class OnloadHook(Hook):
+    type = HookType.onload
+
     def __init__(self, plugin, on_load_hook):
         """
         :type plugin: Plugin
         :type on_load_hook: cloudbot.util.hook._OnLoadHook
         """
-        super().__init__("onload", plugin, on_load_hook)
+        super().__init__(plugin, on_load_hook)
 
     def __repr__(self):
         return "Onload[{}]".format(Hook.__repr__(self))
@@ -700,11 +709,20 @@ class OnloadHook(Hook):
         return "onload {} from {}".format(self.function_name, self.plugin.file_name)
 
 
-_hook_name_to_plugin = {
-    "command": CommandHook,
-    "regex": RegexHook,
-    "irc_raw": RawHook,
-    "sieve": SieveHook,
-    "event": EventHook,
-    "onload": OnloadHook
+class HookType(enum.Enum):
+    command = 1,
+    regex = 2,
+    event = 4,
+    onload = 5,
+    irc_raw = 6,
+    sieve = 3,
+
+
+_hook_type_to_plugin = {
+    HookType.command: CommandHook,
+    HookType.regex: RegexHook,
+    HookType.irc_raw: RawHook,
+    HookType.sieve: SieveHook,
+    HookType.event: EventHook,
+    HookType.onload: OnloadHook
 }

@@ -3,6 +3,7 @@ import re
 import collections
 
 from cloudbot.event import EventType
+from cloudbot.plugin import HookType
 
 valid_command_re = re.compile(r"^\w+$")
 
@@ -10,7 +11,7 @@ valid_command_re = re.compile(r"^\w+$")
 class _Hook():
     """
     :type function: function
-    :type type: str
+    :type type: HookType
     :type kwargs: dict[str, unknown]
     """
     type = None  # subclasses should define this
@@ -35,7 +36,7 @@ class _CommandHook(_Hook):
     :type main_alias: str
     :type aliases: set[str]
     """
-    type = "command"
+    type = HookType.command
 
     def __init__(self, function):
         """
@@ -75,7 +76,7 @@ class _RegexHook(_Hook):
     """
     :type regexes: list[re.__Regex]
     """
-    type = "regex"
+    type = HookType.regex
 
     def __init__(self, function):
         """
@@ -109,7 +110,7 @@ class _RawHook(_Hook):
     """
     :type triggers: set[str]
     """
-    type = "irc_raw"
+    type = HookType.irc_raw
 
     def __init__(self, function):
         """
@@ -135,7 +136,7 @@ class _EventHook(_Hook):
     """
     :type types: set[cloudbot.event.EventType]
     """
-    type = "event"
+    type = HookType.event
 
     def __init__(self, function):
         """
@@ -159,26 +160,26 @@ class _EventHook(_Hook):
 
 
 class _SieveHook(_Hook):
-    type = "sieve"
+    type = HookType.sieve
 
     def add_hook(self, **kwargs):
         self._add_hook(**kwargs)
 
 
 class _OnloadHook(_Hook):
-    type = "onload"
+    type = HookType.onload
 
     def add_hook(self, **kwargs):
         self._add_hook(**kwargs)
 
 
 _hook_name_to_hook = {
-    "command": _CommandHook,
-    "regex": _RegexHook,
-    "irc_raw": _RawHook,
-    "event": _EventHook,
-    "sieve": _SieveHook,
-    "onload": _OnloadHook,
+    HookType.command: _CommandHook,
+    HookType.regex: _RegexHook,
+    HookType.irc_raw: _RawHook,
+    HookType.event: _EventHook,
+    HookType.sieve: _SieveHook,
+    HookType.onload: _OnloadHook,
 }
 
 
@@ -202,7 +203,7 @@ def command(*aliases, **kwargs):
     """
 
     def decorator(func):
-        hook = _get_or_add_hook(func, "command")
+        hook = _get_or_add_hook(func, HookType.command)
 
         if len(aliases) == 1 and callable(aliases[0]):
             hook.add_hook(**kwargs)  # we don't want to pass the function as an argument
@@ -223,7 +224,7 @@ def irc_raw(*triggers, **kwargs):
     """
 
     def decorator(func):
-        hook = _get_or_add_hook(func, "irc_raw")
+        hook = _get_or_add_hook(func, HookType.irc_raw)
         hook.add_hook(*triggers, **kwargs)
         return func
 
@@ -239,7 +240,7 @@ def event(*triggers, **kwargs):
     """
 
     def decorator(func):
-        hook = _get_or_add_hook(func, "event")
+        hook = _get_or_add_hook(func, HookType.event)
         hook.add_hook(*triggers, **kwargs)
         return func
 
@@ -256,7 +257,7 @@ def regex(*regexes, **kwargs):
     """
 
     def decorator(func):
-        hook = _get_or_add_hook(func, "regex")
+        hook = _get_or_add_hook(func, HookType.regex)
         hook.add_hook(*regexes, **kwargs)
         return func
 
@@ -275,7 +276,7 @@ def sieve(param=None, **kwargs):
         assert len(inspect.getargspec(func).args) == 3, \
             "Sieve plugin has incorrect argument count. Needs params: bot, input, plugin"
 
-        hook = _get_or_add_hook(func, "sieve")
+        hook = _get_or_add_hook(func, HookType.sieve)
         hook.add_hook(**kwargs)
 
         return func
@@ -292,7 +293,7 @@ def onload(param=None, **kwargs):
     """
 
     def decorator(func):
-        hook = _get_or_add_hook(func, "onload")
+        hook = _get_or_add_hook(func, HookType.onload)
         hook.add_hook(**kwargs)
         return func
 

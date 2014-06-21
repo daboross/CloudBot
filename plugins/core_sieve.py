@@ -1,6 +1,7 @@
 import asyncio
 
 from cloudbot import hook
+from cloudbot.plugin import HookType
 from cloudbot.util import bucket
 
 TOKENS = 10
@@ -36,7 +37,7 @@ def sieve_suite(bot, event, _hook):
                 return None
 
     # check disabled_commands
-    if _hook.type == "command":
+    if _hook.type is HookType.command:
         disabled_commands = conn.config.get('disabled_commands', [])
         if event.triggered_command in disabled_commands:
             return None
@@ -55,7 +56,7 @@ def sieve_suite(bot, event, _hook):
             return None
 
     # check command spam tokens
-    if _hook.type == "command":
+    if _hook.type is HookType.command:
         uid = event.chan
 
         if not uid in buckets:

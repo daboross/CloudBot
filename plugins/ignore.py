@@ -3,6 +3,7 @@ from fnmatch import fnmatch
 
 from cloudbot import hook
 from cloudbot.event import EventType
+from cloudbot.plugin import HookType
 
 
 @hook.onload
@@ -32,7 +33,7 @@ def ignore_sieve(bot, event, _hook):
     :type _hook: cloudbot.plugin.Hook
     """
     # don't block event hooks
-    if _hook.type == "event":
+    if _hook.type is HookType.event:
         return event
 
     # don't block an event that could be unignoring
