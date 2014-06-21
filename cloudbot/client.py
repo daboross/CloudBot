@@ -1,4 +1,5 @@
 import asyncio
+from collections import deque
 import logging
 
 from cloudbot.permissions import PermissionManager
@@ -121,3 +122,49 @@ class Client:
     @property
     def connected(self):
         raise NotImplementedError
+
+
+# TODO: Tracking of user 'mode' in channels
+class User:
+    """
+    :param name: The nickname of this User
+    :param ident: The IRC ident of this User, if applicable
+    :param host: The hostname of this User, if applicable
+    :param mask: The IRC mask (nick!ident@host), if applicable
+    :type name: str
+    :type ident: str
+    :type host: str
+    :type mask: str
+    """
+
+    def __init__(self, name, ident, host, mask):
+        self.name = name
+        self.ident = ident
+        self.host = host
+        self.mask = mask
+
+
+class Channel:
+    """
+    name: the name of this channel
+    users: A dict from nickname to User in this channel
+    user_modes: A dict from User to an str containing all of the user's modes in this channel
+    history: A list of (User, timestamp, message content)
+    :type name: str
+    :type users: dict[str, User]
+    :type user_modes: dict[User, str]
+    :type history: deque[(User, datetime, str)]
+
+    """
+
+    def __init__(self, name):
+        self.name = name
+        self.users = {}
+        self.user_modes = {}
+        self.history = deque(maxlen=100)
+
+    def track_message(self):
+        """
+        Adds a message to this channel's history, adding user info from the message as well
+        """
+        pass
