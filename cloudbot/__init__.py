@@ -12,8 +12,6 @@ import os
 
 __version__ = "0.1.1.dev0"
 
-__all__ = ["util", "bot", "connection", "config", "permissions", "plugin", "event", "hook", "dev_mode", "log_dir"]
-
 
 def _setup():
     default_developer_mode = {"plugin_reloading": False, "config_reloading": True,
