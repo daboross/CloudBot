@@ -184,15 +184,15 @@ _hook_name_to_hook = {
 
 
 def _get_or_add_hook(func, hook_type):
-    if hasattr(func, "_cloudbot_hook"):
-        if hook_type in func._cloudbot_hook:
-            hook = func._cloudbot_hook[hook_type]
+    if hasattr(func, "cloudbot_hook"):
+        if hook_type in func.cloudbot_hook:
+            hook = func.cloudbot_hook[hook_type]
         else:
             hook = _hook_name_to_hook[hook_type](func)  # Make a new hook
-            func._cloudbot_hook[hook_type] = hook
+            func.cloudbot_hook[hook_type] = hook
     else:
         hook = _hook_name_to_hook[hook_type](func)  # Make a new hook
-        func._cloudbot_hook = {hook_type: hook}
+        func.cloudbot_hook = {hook_type: hook}
 
     return hook
 
@@ -273,8 +273,9 @@ def sieve(param=None, **kwargs):
     """
 
     def decorator(func):
-        assert len(inspect.getargspec(func).args) == 3, \
-            "Sieve plugin has incorrect argument count. Needs params: bot, input, plugin"
+        if len(inspect.getargspec(func).args) != 1:
+            raise ValueError(
+                "Sieve plugin has too many or too few arguments. Sieves should only accept one argument: 'event'")
 
         hook = _get_or_add_hook(func, HookType.sieve)
         hook.add_hook(**kwargs)

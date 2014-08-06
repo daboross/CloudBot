@@ -2,20 +2,31 @@ import asyncio
 import os
 import codecs
 import time
+import re
 
 import cloudbot
 from cloudbot import hook
 from cloudbot.event import EventType
 
+irc_color_re = re.compile(r"(\x03(\d+,\d+|\d)|[\x0f\x02\x16\x1f])")
+
+
+def strip_colors(text):
+    """
+    :param text: Text to strip
+    :return: Text stripped of IRC colors
+    :type text: str
+    :rtype: str
+    """
+    return irc_color_re.sub('', text)
 
 # +---------+
 # | Formats |
 # +---------+
-from cloudbot.util.formatting import strip_colors
+
 
 base_formats = {
     EventType.message: "[{server}:{channel}] <{nick}> {content}",
-    EventType.notice: "[{server}:{channel}] -{nick}- {content}",
     EventType.action: "[{server}:{channel}] * {nick} {content}",
     EventType.join: "[{server}:{channel}] -!- {nick} [{user}@{host}] has joined",
     EventType.part: "[{server}:{channel}] -!- {nick} [{user}@{host}] has left ({content})",
@@ -28,6 +39,7 @@ irc_formats = {
     "QUIT": "[{server}] -!- {nick} has quit ({content})",
     "INVITE": "[{server}] -!- {nick} has invited {target} to {chan}",
     "NICK": "[{server}] {nick} is now known as {content}",
+    "NOTICE": "[{server}:{channel}] -{nick}- {content}",
 }
 
 irc_default = "[{server}] {irc_raw}"
@@ -35,9 +47,6 @@ irc_default = "[{server}] {irc_raw}"
 ctcp_known = "[{server}:{channel}] {nick} [{user}@{host}] has requested CTCP {ctcp_command}"
 ctcp_known_with_message = ("[{server}:{channel}] {nick} [{user}@{host}] "
                            "has requested CTCP {ctcp_command}: {ctcp_message}")
-ctcp_unknown = "[{server}:{channel}] {nick} [{user}@{host}] has requested unknown CTCP {ctcp_command}"
-ctcp_unknown_with_message = ("[{server}:{channel}] {nick} [{user}@{host}] "
-                             "has requested unknown CTCP {ctcp_command}: {ctcp_message}")
 
 
 # +------------+
@@ -99,16 +108,10 @@ def format_irc_event(event, args):
         args["ctcp_command"] = ctcp_command
         args["ctcp_message"] = ctcp_message
 
-        if ctcp_command in ("VERSION", "PING", "TIME", "FINGER"):
-            if ctcp_message:
-                return ctcp_known_with_message.format(**args)
-            else:
-                return ctcp_known.format(**args)
+        if ctcp_message:
+            return ctcp_known_with_message.format(**args)
         else:
-            if ctcp_message:
-                return ctcp_unknown_with_message.format(**args)
-            else:
-                return ctcp_unknown.format(**args)
+            return ctcp_known.format(**args)
 
     # No formats have been found, resort to the default
 
@@ -203,7 +206,7 @@ def log_raw(event):
     """
     :type event: cloudbot.event.Event
     """
-    logging_config = event.bot.config.get("logging", {})
+    logging_config = event.bot.config.get('logging', {})
     if not logging_config.get("raw_file_log", False):
         return
 
@@ -224,19 +227,19 @@ def log(event):
 
 # Log console separately to prevent lag
 @asyncio.coroutine
-@hook.irc_raw("*")
-def console_log(bot, event):
+@hook.irc_raw("*", run_first=True)
+def console_log(event, logger):
     """
     :type bot: cloudbot.bot.CloudBot
     :type event: cloudbot.event.Event
     """
     text = format_event(event)
     if text is not None:
-        bot.logger.info(text)
+        logger.info(text)
 
 
 # TODO: @hook.onstop() for when unloaded
-@hook.command("flushlog", permissions=["adminonly"])
+@hook.command('flushlog', permissions=["bot.manage"])
 def flush_log():
     for stream in stream_cache.values():
         stream.flush()
