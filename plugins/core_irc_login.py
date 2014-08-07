@@ -20,9 +20,11 @@ def onjoin(conn, logger):
         if nickserv_password:
             if nickserv_account_name:
                 conn.message(nickserv_name,
-                             "{} {} {}".format(nickserv_command, nickserv_account_name, nickserv_password))
+                             "{} {} {}".format(nickserv_command, nickserv_account_name, nickserv_password),
+                             log_hide=nickserv_password)
             else:
-                conn.message(nickserv_name, "{} {}".format(nickserv_command, nickserv_password))
+                conn.message(nickserv_name, "{} {}".format(nickserv_command, nickserv_password),
+                             log_hide=nickserv_password)
             yield from asyncio.sleep(1)
 
     # Set bot modes

@@ -126,15 +126,15 @@ class IrcClient(Client):
         self._transport.close()
         self._connected = False
 
-    def message(self, target, *messages):
+    def message(self, target, *messages, log_hide=None):
         for text in messages:
-            self.cmd("PRIVMSG", target, text)
+            self.cmd("PRIVMSG", target, text, log_hide=log_hide)
 
-    def action(self, target, text):
-        self.ctcp(target, "ACTION", text)
+    def action(self, target, text, log_hide=None):
+        self.ctcp(target, "ACTION", text, log_hide=log_hide)
 
-    def notice(self, target, text):
-        self.cmd("NOTICE", target, text)
+    def notice(self, target, text, log_hide=None):
+        self.cmd("NOTICE", target, text, log_hide=log_hide)
 
     def set_nick(self, nick):
         self.cmd("NICK", nick)
@@ -156,7 +156,7 @@ class IrcClient(Client):
             return
         self.cmd("PASS", password)
 
-    def ctcp(self, target, ctcp_type, text):
+    def ctcp(self, target, ctcp_type, text, log_hide=None):
         """
         Makes the bot send a PRIVMSG CTCP of type <ctcp_type> to the target
         :type ctcp_type: str
@@ -164,9 +164,9 @@ class IrcClient(Client):
         :type target: str
         """
         out = "\x01{} {}\x01".format(ctcp_type, text)
-        self.cmd("PRIVMSG", target, out)
+        self.cmd("PRIVMSG", target, out, log_hide=log_hide)
 
-    def cmd(self, command, *params):
+    def cmd(self, command, *params, log_hide=None):
         """
         Sends a raw IRC command of type <command> with params <params>
         :param command: The IRC command to send
@@ -177,25 +177,28 @@ class IrcClient(Client):
         params = list(params)  # turn the tuple of parameters into a list
         if params:
             params[-1] = ':' + params[-1]
-            self.send("{} {}".format(command, ' '.join(params)))
+            self.send("{} {}".format(command, ' '.join(params)), log_hide=log_hide)
         else:
-            self.send(command)
+            self.send(command, log_hide=log_hide)
 
-    def send(self, line):
+    def send(self, line, log_hide=None):
         """
         Sends a raw IRC line
         :type line: str
         """
         if not self._connected:
             raise ValueError("Client must be connected to irc server to use send")
-        self.loop.call_soon_threadsafe(self._send, line)
+        self.loop.call_soon_threadsafe(self._send, line, log_hide)
 
-    def _send(self, line):
+    def _send(self, line, log_hide):
         """
         Sends a raw IRC line unchecked. Doesn't do connected check, and is *not* threadsafe
         :type line: str
         """
-        logger.info("[{}] >> {}".format(self.readable_name, line))
+        if log_hide is not None:
+            logger.info("[{}] >> {}".format(self.readable_name, line.replace(log_hide, "<hidden>")))
+        else:
+            logger.info("[{}] >> {}".format(self.readable_name, line))
         asyncio.async(self._protocol.send(line), loop=self.loop)
 
     @property
