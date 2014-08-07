@@ -4,10 +4,10 @@ import asyncio
 import logging
 import re
 
-from cloudbot import hook
-from cloudbot.event import EventType
+from obrbot import hook
+from obrbot.event import EventType
 
-logger = logging.getLogger("cloudbot")
+logger = logging.getLogger("obrbot")
 
 nick_re = re.compile(":(.+?)!")
 
@@ -16,7 +16,7 @@ nick_re = re.compile(":(.+?)!")
 @hook.event(EventType.kick)
 def on_kick(conn, chan, nick):
     """
-    :type conn: cloudbot.client.Client
+    :type conn: obrbot.client.Client
     :type chan: str
     :type nick: str
     """
@@ -32,7 +32,7 @@ def on_kick(conn, chan, nick):
 @hook.event(EventType.join)
 def on_join(conn, chan, nick):
     """
-    :type conn: cloudbot.client.Client
+    :type conn: obrbot.client.Client
     :type chan: str
     :type nick: str
     """
@@ -43,15 +43,14 @@ def on_join(conn, chan, nick):
 
 @asyncio.coroutine
 @hook.irc_raw("NICK")
-def on_nick(irc_paramlist, conn, irc_raw):
+def on_nick(conn, irc_raw, content):
     """
     :type irc_paramlist: list[str]
-    :type conn: cloudbot.client.Client
+    :type conn: obrbot.client.Client
     :type irc_raw: str
     """
     old_nick = nick_re.search(irc_raw).group(1)
-    new_nick = str(irc_paramlist[0])
     if old_nick == conn.nick:
-        conn.nick = new_nick
+        conn.nick = new_nick = content
         logger.info("Bot nick changed from '{}' to '{}'.".format(old_nick, new_nick))
 

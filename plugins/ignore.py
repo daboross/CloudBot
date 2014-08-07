@@ -1,15 +1,15 @@
 import asyncio
 from fnmatch import fnmatch
 
-from cloudbot import hook
-from cloudbot.plugin import HookType
+from obrbot import hook
+from obrbot.plugin import HookType
 
 
 @asyncio.coroutine
 @hook.sieve()
 def ignore_sieve(event):
     """ blocks events from ignored channels/hosts
-    :type event: cloudbot.event.Event
+    :type event: obrbot.event.Event
     """
     bot = event.bot
     # don't block event hooks

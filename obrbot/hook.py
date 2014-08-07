@@ -2,8 +2,8 @@ import inspect
 import re
 import collections
 
-from cloudbot.event import EventType
-from cloudbot.plugin import HookType
+from obrbot.event import EventType
+from obrbot.plugin import HookType
 
 valid_command_re = re.compile(r"^\w+$")
 
@@ -134,7 +134,7 @@ class _RawHook(_Hook):
 
 class _EventHook(_Hook):
     """
-    :type types: set[cloudbot.event.EventType]
+    :type types: set[obrbot.event.EventType]
     """
     type = HookType.event
 
@@ -147,7 +147,7 @@ class _EventHook(_Hook):
 
     def add_hook(self, *events, **kwargs):
         """
-        :type events: tuple[cloudbot.event.EventType] | (list[cloudbot.event.EventType])
+        :type events: tuple[obrbot.event.EventType] | (list[obrbot.event.EventType])
         :type kwargs: dict[str, unknown]
         """
         self._add_hook(**kwargs)
@@ -166,8 +166,15 @@ class _SieveHook(_Hook):
         self._add_hook(**kwargs)
 
 
-class _OnloadHook(_Hook):
-    type = HookType.onload
+class _OnStartHook(_Hook):
+    type = HookType.on_start
+
+    def add_hook(self, **kwargs):
+        self._add_hook(**kwargs)
+
+
+class _OnStopHook(_Hook):
+    type = HookType.on_stop
 
     def add_hook(self, **kwargs):
         self._add_hook(**kwargs)
@@ -179,20 +186,21 @@ _hook_name_to_hook = {
     HookType.irc_raw: _RawHook,
     HookType.event: _EventHook,
     HookType.sieve: _SieveHook,
-    HookType.onload: _OnloadHook,
+    HookType.on_start: _OnStartHook,
+    HookType.on_stop: _OnStopHook,
 }
 
 
 def _get_or_add_hook(func, hook_type):
-    if hasattr(func, "cloudbot_hook"):
-        if hook_type in func.cloudbot_hook:
-            hook = func.cloudbot_hook[hook_type]
+    if hasattr(func, "plugin_hook"):
+        if hook_type in func.plugin_hook:
+            hook = func.plugin_hook[hook_type]
         else:
             hook = _hook_name_to_hook[hook_type](func)  # Make a new hook
-            func.cloudbot_hook[hook_type] = hook
+            func.plugin_hook[hook_type] = hook
     else:
         hook = _hook_name_to_hook[hook_type](func)  # Make a new hook
-        func.cloudbot_hook = {hook_type: hook}
+        func.plugin_hook = {hook_type: hook}
 
     return hook
 
@@ -236,7 +244,7 @@ def irc_raw(*triggers, **kwargs):
 
 def event(*triggers, **kwargs):
     """External event decorator. Must be used as a function to return a decorator
-    :type triggers: tuple[cloudbot.event.EventType] | (list[cloudbot.event.EventType])
+    :type triggers: tuple[obrbot.event.EventType] | (list[obrbot.event.EventType])
     """
 
     def decorator(func):
@@ -288,13 +296,28 @@ def sieve(param=None, **kwargs):
         return decorator
 
 
-def onload(param=None, **kwargs):
-    """External onload decorator. Can be used directly as a decorator, or with args to return a decorator
+def on_start(param=None, **kwargs):
+    """External on start decorator. Can be used directly as a decorator, or with args to return a decorator
     :type param: function | None
     """
 
     def decorator(func):
-        hook = _get_or_add_hook(func, HookType.onload)
+        hook = _get_or_add_hook(func, HookType.on_start)
+        hook.add_hook(**kwargs)
+        return func
+
+    if callable(param):
+        return decorator(param)
+    else:
+        return decorator
+
+def on_stop(param=None, **kwargs):
+    """External on stop decorator. Can be used directly as a decorator, or with args to return a decorator
+    :type param: function | None
+    """
+
+    def decorator(func):
+        hook = _get_or_add_hook(func, HookType.on_stop)
         hook.add_hook(**kwargs)
         return func
 

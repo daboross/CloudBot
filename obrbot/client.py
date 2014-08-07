@@ -3,15 +3,15 @@ from collections import deque
 import datetime
 import logging
 
-from cloudbot.permissions import PermissionManager
+from obrbot.permissions import PermissionManager
 
-logger = logging.getLogger("cloudbot")
+logger = logging.getLogger("obrbot")
 
 
 class Client:
     """
     A Client representing each connection the bot makes to a single server
-    :type bot: cloudbot.bot.CloudBot
+    :type bot: obrbot.bot.ObrBot
     :type loop: asyncio.events.AbstractEventLoop
     :type name: str
     :type readable_name: str
@@ -25,7 +25,7 @@ class Client:
 
     def __init__(self, bot, name, nick, *, readable_name, channels=None, config=None):
         """
-        :type bot: cloudbot.bot.CloudBot
+        :type bot: obrbot.bot.ObrBot
         :type name: str
         :type readable_name: str
         :type nick: str
@@ -173,7 +173,7 @@ class Channel:
     def track_message(self, event):
         """
         Adds a message to this channel's history, adding user info from the message as well
-        :type event: cloudbot.event.Event
+        :type event: obrbot.event.Event
         """
         user = self.users[event.nick.lower()]
         if not user.mask_known:
@@ -185,25 +185,25 @@ class Channel:
 
     def track_join(self, event):
         """
-        :type event: cloudbot.event.Event
+        :type event: obrbot.event.Event
         """
         self.users[event.nick.lower()] = User(event.nick, ident=event.user, host=event.host, mask=event.mask, mode='')
 
     def track_part(self, event):
         """
-        :type event: cloudbot.event.Event
+        :type event: obrbot.event.Event
         """
         del self.users[event.nick.lower()]
 
     def track_topic(self, event):
         """
-        :type event: cloudbot.event.Event
+        :type event: obrbot.event.Event
         """
         self.topic = event.content
 
     def track_mode_change(self, event):
         """
-        :type event: cloudbot.event.Event
+        :type event: obrbot.event.Event
         """
         user = self.users[event.nick.lower()]
         pass

@@ -1,6 +1,6 @@
 import asyncio
 
-from cloudbot import hook
+from obrbot import hook
 
 
 # Identify to NickServ (or other service)
@@ -8,7 +8,7 @@ from cloudbot import hook
 @hook.irc_raw('004')
 def onjoin(conn, logger):
     """
-    :type conn: cloudbot.clients.irc.IrcClient
+    :type conn: obrbot.clients.irc.IrcClient
     :type logger: logging.Logger
     """
     nickserv = conn.config.get('nickserv')
@@ -44,7 +44,7 @@ def onjoin(conn, logger):
 @hook.irc_raw('004')
 def keep_alive(conn):
     """
-    :type conn: cloudbot.clients.irc.IrcClient
+    :type conn: obrbot.clients.irc.IrcClient
     """
 
     if not conn.config.get('keep_alive', False):

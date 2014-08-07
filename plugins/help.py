@@ -2,7 +2,7 @@ from operator import attrgetter
 import asyncio
 import re
 
-from cloudbot import hook
+from obrbot import hook
 
 
 @asyncio.coroutine
@@ -10,8 +10,8 @@ from cloudbot import hook
 def help_command(text, conn, bot, notice, has_permission):
     """[command] - gives help for [command], or lists all available commands if no command is specified
     :type text: str
-    :type conn: cloudbot.client.Client
-    :type bot: cloudbot.bot.CloudBot
+    :type conn: obrbot.client.Client
+    :type bot: obrbot.bot.ObrBot
     """
     if text:
         searching_for = text.lower().strip()

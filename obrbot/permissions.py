@@ -1,7 +1,7 @@
 from fnmatch import fnmatch
 import logging
 
-logger = logging.getLogger("cloudbot")
+logger = logging.getLogger("obrbot")
 
 
 class PermissionManager(object):
@@ -16,7 +16,7 @@ class PermissionManager(object):
 
     def __init__(self, conn):
         """
-        :type conn: cloudbot.client.Client
+        :type conn: obrbot.client.Client
         """
         logger.info("[{}] Created permission manager for {}.".format(conn.readable_name, conn.name))
 

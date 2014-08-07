@@ -2,7 +2,7 @@ import sys
 
 # check python version
 if sys.version_info < (3, 4, 0):
-    print("Obr requires Python 3.4 or newer.")
+    print("ObrBot requires Python 3.4 or newer.")
     sys.exit(1)
 
 import json
@@ -59,7 +59,7 @@ def _setup():
             }
         },
         "loggers": {
-            "cloudbot": {
+            "obrbot": {
                 "level": "DEBUG",
                 "handlers": ["console", "file"]
             }
@@ -76,7 +76,7 @@ def _setup():
             "level": "DEBUG",
             "filename": os.path.join(logging_dir, "debug.log")
         }
-        dict_config["loggers"]["cloudbot"]["handlers"].append("debug_file")
+        dict_config["loggers"]["obrbot"]["handlers"].append("debug_file")
 
     logging.config.dictConfig(dict_config)
 

@@ -5,10 +5,10 @@ import ssl
 import logging
 from ssl import SSLContext
 
-from cloudbot.client import Client
-from cloudbot.event import Event, EventType
+from obrbot.client import Client
+from obrbot.event import Event, EventType
 
-logger = logging.getLogger("cloudbot")
+logger = logging.getLogger("obrbot")
 
 irc_prefix_re = re.compile(r":([^ ]*) ([^ ]*) (.*)")
 irc_noprefix_re = re.compile(r"([^ ]*) (.*)")
@@ -36,7 +36,7 @@ class IrcClient(Client):
     def __init__(self, bot, name, nick, *, readable_name, channels=None, config=None,
                  server, port=6667, use_ssl=False, ignore_cert_errors=True, timeout=300):
         """
-        :type bot: cloudbot.bot.CloudBot
+        :type bot: obrbot.bot.ObrBot
         :type name: str
         :type readable_name: str
         :type nick: str
@@ -105,8 +105,8 @@ class IrcClient(Client):
         # send the password, nick, and user
         self.set_pass(self.config["connection"].get("password"))
         self.set_nick(self.nick)
-        self.cmd("USER", self.config.get('user', 'cloudbot'), "3", "*",
-                 self.config.get('real_name', 'CloudBotRefresh - http://cloudbot.pw'))
+        self.cmd("USER", self.config.get('user', 'obrbot'), "3", "*",
+                 self.config.get('real_name', 'CloudBotRefresh - http://obrbot.pw'))
 
     def quit(self, reason=None):
         if self._quit:
@@ -207,7 +207,7 @@ class _IrcProtocol(asyncio.Protocol):
     """
     :type loop: asyncio.events.AbstractEventLoop
     :type conn: IrcClient
-    :type bot: cloudbot.bot.CloudBot
+    :type bot: obrbot.bot.ObrBot
     :type _input_buffer: bytes
     :type _connected: bool
     :type _transport: asyncio.transports.Transport
@@ -248,7 +248,10 @@ class _IrcProtocol(asyncio.Protocol):
         if exc is None:
             # we've been closed intentionally, so don't reconnect
             return
-        logger.exception("[{}] Connection lost.".format(self.conn.readable_name))
+        if exc is None:
+            logger.info("[{}] Connection lost.".format(self.conn.readable_name))
+        else:
+            logger.exception("[{}] Connection lost.".format(self.conn.readable_name))
         asyncio.async(self.conn.connect(), loop=self.loop)
 
     def eof_received(self):
@@ -339,7 +342,6 @@ class _IrcProtocol(asyncio.Protocol):
             elif command == "INVITE":
                 target = command_params[0]
             else:
-                # TODO: Find more commands which give a target
                 target = None
 
             # Parse for CTCP
@@ -369,7 +371,6 @@ class _IrcProtocol(asyncio.Protocol):
                 channel = None
 
             # Set up parsed message
-            # TODO: Do we really want to send the raw `command_params` here?
             event = Event(bot=self.bot, conn=self.conn, event_type=event_type, content=content, target=target,
                           channel=channel, nick=nick, user=user, host=host, mask=mask, irc_raw=line,
                           irc_command=command, irc_paramlist=command_params, irc_ctcp_text=ctcp_text)

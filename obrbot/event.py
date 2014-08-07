@@ -2,7 +2,7 @@ import asyncio
 import enum
 import logging
 
-logger = logging.getLogger("cloudbot")
+logger = logging.getLogger("obrbot")
 
 
 @enum.unique
@@ -17,9 +17,9 @@ class EventType(enum.Enum):
 
 class Event:
     """
-    :type bot: cloudbot.bot.CloudBot
-    :type conn: cloudbot.client.Client
-    :type hook: cloudbot.plugin.Hook
+    :type bot: obrbot.bot.ObrBot
+    :type conn: obrbot.client.Client
+    :type hook: obrbot.plugin.Hook
     :type type: EventType
     :type content: str
     :type target: str
@@ -43,7 +43,7 @@ class Event:
 
         Note that the `bot` argument may be left out if you specify a `base_event`.
 
-        :param bot: The CloudBot instance this event was triggered from
+        :param bot: The ObrBot instance this event was triggered from
         :param conn: The Client instance this event was triggered from
         :param hook: The hook this event will be passed to
         :param base_event: The base event that this event is based on. If this parameter is not None, then nick, user,
@@ -61,10 +61,10 @@ class Event:
         :param irc_paramlist: The list of params for the IRC command. If the last param is a content param, the ':'
                                 should be removed from the front.
         :param irc_ctcp_text: CTCP text if this message is a CTCP command
-        :type bot: cloudbot.bot.CloudBot
-        :type conn: cloudbot.client.Client
-        :type hook: cloudbot.plugin.Hook
-        :type base_event: cloudbot.event.Event
+        :type bot: obrbot.bot.ObrBot
+        :type conn: obrbot.client.Client
+        :type hook: obrbot.plugin.Hook
+        :type base_event: obrbot.event.Event
         :type content: str
         :type target: str
         :type event_type: EventType
@@ -225,7 +225,7 @@ class Event:
 
 class CommandEvent(Event):
     """
-    :type hook: cloudbot.plugin.CommandHook
+    :type hook: obrbot.plugin.CommandHook
     :type text: str
     :type triggered_command: str
     """
@@ -264,7 +264,7 @@ class CommandEvent(Event):
 
 class RegexEvent(Event):
     """
-    :type hook: cloudbot.plugin.RegexHook
+    :type hook: obrbot.plugin.RegexHook
     :type match: re.__Match
     """
 

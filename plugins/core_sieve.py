@@ -1,8 +1,8 @@
 import asyncio
 
-from cloudbot import hook
-from cloudbot.plugin import HookType
-from cloudbot.util import bucket
+from obrbot import hook
+from obrbot.plugin import HookType
+from obrbot.util import bucket
 
 TOKENS = 10
 RESTORE_RATE = 1
@@ -15,7 +15,7 @@ channel_buckets = {}
 @hook.sieve
 def sieve_suite(event):
     """
-    :type event: cloudbot.event.Event
+    :type event: obrbot.event.Event
     """
 
     # check permissions

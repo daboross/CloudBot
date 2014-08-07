@@ -1,6 +1,6 @@
 ## Installing on Windows
 
-We recommend that use you use a *unix system to run CloudBot in production, or Vagrant when developing CloudBot. However, it is possible to install natively on Windows.
+We recommend that use you use a *unix system to run ObrBot in production, or Vagrant when developing ObrBot. However, it is possible to install natively on Windows.
 
 First, make sure you have python3.4 installed. It can be downloaded at [python.org](https://www.python.org/downloads/release/python-341/).
 
@@ -15,7 +15,7 @@ If that doesn't work, follow [this guide](http://simpledeveloper.com/how-to-inst
 
 ### Download
 
-Download CloudBotRefresh from [https://github.com/CloudBotIRC/CloudBot/zipball/python3.4.zip](https://github.com/CloudBotIRC/CloudBotRefresh/archive/python3.4.zip).
+Download ObrBot from [https://github.com/daboross/obrbot/archive/master.zip](https://github.com/daboross/obrbot/archive/master.zip).
 
 Unzip the resulting file, and continue to read this document.
 
@@ -26,5 +26,3 @@ Before you can run the bot, you need to install a few Python dependencies. All o
 These can be installed with `pip` (The Python package manager) by running the following command in the bot directory:
 
     pip install -r requirements.txt
-
-Note for **Windows** users: Windows compatibility some modules is **broken** (such as ping), but we do intend to add it, eventually.

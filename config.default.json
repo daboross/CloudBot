@@ -9,10 +9,10 @@
                 "ignore_cert": true,
                 "password": ""
             },
-            "nick": "MyCloudBot",
-            "user": "cloudbot",
-            "real_name": "CloudBotRefresh - http://cloudbot.pw",
-            "channels": ["#cloudbot"],
+            "nick": "ObrBot",
+            "user": "obrbot",
+            "real_name": "ObrBot",
+            "channels": ["#obrbot"],
             "nickserv": {
                 "enabled": false,
                 "nickserv_password": "",

@@ -5,7 +5,7 @@ from datetime import timedelta
 
 import psutil
 
-from cloudbot import hook
+from obrbot import hook
 
 
 def format_bytes(num):

@@ -3,10 +3,11 @@ import os
 import codecs
 import time
 import re
+import itertools
 
-import cloudbot
-from cloudbot import hook
-from cloudbot.event import EventType
+import obrbot
+from obrbot import hook
+from obrbot.event import EventType
 
 irc_color_re = re.compile(r"(\x03(\d+,\d+|\d)|[\x0f\x02\x16\x1f])")
 
@@ -56,7 +57,7 @@ ctcp_known_with_message = ("[{server}:{channel}] {nick} [{user}@{host}] "
 def format_event(event):
     """
     Format an event
-    :type event: cloudbot.event.Event
+    :type event: obrbot.event.Event
     :rtype: str
     """
 
@@ -150,7 +151,7 @@ def get_log_filename(server, chan):
     current_time = time.gmtime()
     folder_name = time.strftime(folder_format, current_time)
     file_name = time.strftime(file_format.format(chan=chan, server=server), current_time).lower()
-    return os.path.join(cloudbot.log_dir, folder_name, file_name)
+    return os.path.join(obrbot.log_dir, folder_name, file_name)
 
 
 def get_log_stream(server, chan):
@@ -178,7 +179,7 @@ def get_raw_log_filename(server):
     current_time = time.gmtime()
     folder_name = time.strftime(folder_format, current_time)
     file_name = time.strftime(raw_file_format.format(server=server), current_time).lower()
-    return os.path.join(cloudbot.log_dir, "raw", folder_name, file_name)
+    return os.path.join(obrbot.log_dir, "raw", folder_name, file_name)
 
 
 def get_raw_log_stream(server):
@@ -204,7 +205,7 @@ def get_raw_log_stream(server):
 @hook.irc_raw("*", singlethread=True)
 def log_raw(event):
     """
-    :type event: cloudbot.event.Event
+    :type event: obrbot.event.Event
     """
     logging_config = event.bot.config.get('logging', {})
     if not logging_config.get("raw_file_log", False):
@@ -216,7 +217,7 @@ def log_raw(event):
 @hook.irc_raw("*", singlethread=True)
 def log(event):
     """
-    :type event: cloudbot.event.Event
+    :type event: obrbot.event.Event
     """
     text = format_event(event)
 
@@ -230,18 +231,22 @@ def log(event):
 @hook.irc_raw("*", run_first=True)
 def console_log(event, logger):
     """
-    :type bot: cloudbot.bot.CloudBot
-    :type event: cloudbot.event.Event
+    :type event: obrbot.event.Event
+    :type logger: logging.Logger
     """
     text = format_event(event)
     if text is not None:
         logger.info(text)
 
 
-# TODO: @hook.onstop() for when unloaded
-@hook.command('flushlog', permissions=["bot.manage"])
+@hook.command('flushlogs', permissions=["bot.manage"])
 def flush_log():
-    for stream in stream_cache.values():
+    for stream in [pair[1] for pair in itertools.chain(stream_cache.values(), raw_cache.values())]:
         stream.flush()
-    for stream in raw_cache.values():
+
+
+@hook.on_stop()
+def close_logs():
+    for stream in [pair[1] for pair in itertools.chain(stream_cache.values(), raw_cache.values())]:
         stream.flush()
+        stream.close()

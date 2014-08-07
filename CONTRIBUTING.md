@@ -10,17 +10,16 @@ The following guidelines for contribution should be followed if you want to subm
 * Fork the repository
 * Edit the files, add new files
 * Check the files with [`pep8`](https://pypi.python.org/pypi/pep8), fix any reported errors
-* Check that the files work as expected in CloudBot
+* Check that the files work as expected in ObrBot
 * Create a new branch with a descriptive name for your feature (optional)
 * Commit changes, push to your fork on GitHub
 * Create a new pull request, provide a short summary of changes in the title line, with more information in the description field.
-* After submitting the pull request, join the IRC channel (irc.esper.net #cloudbot) and paste a link to the pull request so people are aware of it
-* After discussion, your pull request will be accepted or rejected.
+* The pull request will be reviewed!
 
 ## How to prepare
 
 * You need a [GitHub account](https://github.com/signup/free)
-* Submit an [issue ticket](https://github.com/ClouDev/CloudBot/issues) for your issue if the is no one yet.
+* Submit an [issue ticket](https://github.com/ClouDev/ObrBot/issues) for your issue if the is no one yet.
   * Describe the issue and include steps to reproduce if it's a bug.
 	* Ensure to mention the earliest version that you know is affected.
 * If you are able and want to fix this, fork the repository on GitHub

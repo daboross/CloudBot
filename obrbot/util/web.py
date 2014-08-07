@@ -53,9 +53,6 @@ class ServiceError(Exception):
 
 
 class LinkService:
-    def __init__(self):
-        pass
-
     def shorten(self, url, custom=None):
         return url
 
@@ -75,9 +72,6 @@ class LinkService:
 
 
 class PasteService:
-    def __init__(self):
-        pass
-
     def paste(self, data, ext):
         raise NotImplementedError
 

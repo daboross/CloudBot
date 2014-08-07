@@ -1,14 +1,14 @@
 import asyncio
 import time
 
-from cloudbot import hook
-import cloudbot
+from obrbot import hook
+import obrbot
 
 
 @asyncio.coroutine
 @hook.regex(r'^\x01VERSION\x01$')
 def ctcp_version(notice):
-    notice("\x01VERSION: Obr v{}".format(cloudbot.__version__))
+    notice("\x01VERSION: Obr v{}".format(obrbot.__version__))
 
 
 @asyncio.coroutine

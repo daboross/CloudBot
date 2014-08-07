@@ -7,12 +7,12 @@ import gc
 
 import redis
 
-import cloudbot
-from cloudbot.client import Client
-from cloudbot.config import Config
-from cloudbot.plugin import PluginManager
-from cloudbot.event import Event, CommandEvent, RegexEvent, EventType
-from cloudbot.clients.irc import IrcClient
+import obrbot
+from obrbot.client import Client
+from obrbot.config import Config
+from obrbot.plugin import PluginManager
+from obrbot.event import Event, CommandEvent, RegexEvent, EventType
+from obrbot.clients.irc import IrcClient
 
 logger = logging.getLogger("bot")
 
@@ -25,7 +25,7 @@ def clean_name(n):
     return re.sub('[^A-Za-z0-9_]+', '', n.replace(" ", "_"))
 
 
-class CloudBot:
+class ObrBot:
     """
     :type start_time: float
     :type running: bool
@@ -54,9 +54,9 @@ class CloudBot:
         logger.debug("Config system initialised.")
 
         # log developer mode
-        if cloudbot.dev_mode.get("console_debug"):
+        if obrbot.dev_mode.get("console_debug"):
             logger.info("Enabling console debug.")
-        if cloudbot.dev_mode.get("file_debug"):
+        if obrbot.dev_mode.get("file_debug"):
             logger.info("Enabling file debug")
 
         # setup db
@@ -78,9 +78,9 @@ class CloudBot:
 
     def run(self):
         """
-        Starts CloudBot.
+        Starts ObrBot.
         This will load plugins, connect to IRC, and process input.
-        :return: True if CloudBot should be restarted, False otherwise
+        :return: True if ObrBot should be restarted, False otherwise
         :rtype: bool
         """
         # Initializes the bot, plugins and connections
@@ -125,6 +125,8 @@ class CloudBot:
                 # Don't close a connection that hasn't connected
                 continue
             connection.close()
+
+        yield from self.plugin_manager.run_shutdown_hooks()
 
         self.running = False
         # Give the stopped_future a result, so that run() will exit

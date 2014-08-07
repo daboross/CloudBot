@@ -7,60 +7,63 @@ import logging
 import os
 import re
 
-from cloudbot.event import Event
+from obrbot.event import Event
 
-logger = logging.getLogger("cloudbot")
+logger = logging.getLogger("obrbot")
 
 
 class HookType(enum.Enum):
     command = 1,
     regex = 2,
     event = 3,
-    onload = 4,
-    irc_raw = 5,
-    sieve = 6,
+    irc_raw = 4,
+    sieve = 5,
+    on_start = 6,
+    on_stop = 7
 
-# cloudbot.hook imports plugin.HookType, so to not cause a circular import error, we import cloudbot.hook after defining
+# obrbot.hook imports plugin.HookType, so to not cause a circular import error, we import obrbot.hook after defining
 # the HookType enum. TODO: is there *any* better way to do this?
-import cloudbot.hook
+import obrbot.hook
 
 
 def find_hooks(parent, module):
     """
     :type parent: Plugin
     :type module: object
-    :rtype: (list[CommandHook], list[RegexHook], list[RawHook], list[SieveHook], List[EventHook], list[OnloadHook])
+    :rtype: (list[CommandHook], list[RegexHook], list[RawHook], list[SieveHook], List[EventHook], list[OnStartHook],
+        list[OnStopHook])
     """
     # set the loaded flag
-    module._cloudbot_loaded = True
+    module._plugins_loaded = True
     command = []
     regex = []
     raw = []
     sieve = []
     event = []
-    onload = []
+    on_start = []
+    on_stop = []
     type_lists = {HookType.command: command, HookType.regex: regex, HookType.irc_raw: raw, HookType.sieve: sieve,
-                  HookType.event: event, HookType.onload: onload}
+                  HookType.event: event, HookType.on_start: on_start, HookType.on_stop: on_stop}
     for name, func in module.__dict__.items():
-        if hasattr(func, "cloudbot_hook"):
-            # if it has cloudbot hook
-            func_hooks = func.cloudbot_hook
+        if hasattr(func, "plugin_hook"):
+            # if it has obrbot hook
+            func_hooks = func.plugin_hook
 
             for hook_type, func_hook in func_hooks.items():
                 type_lists[hook_type].append(_hook_type_to_plugin[hook_type](parent, func_hook))
 
             # delete the hook to free memory
-            del func.cloudbot_hook
+            del func.plugin_hook
 
-    return command, regex, raw, sieve, event, onload
+    return command, regex, raw, sieve, event, on_start, on_stop
 
 
 def _prepare_parameters(hook, event):
     """
     Prepares arguments for the given hook
 
-    :type hook: cloudbot.plugin.Hook
-    :type event: cloudbot.event.Event
+    :type hook: obrbot.plugin.Hook
+    :type event: obrbot.event.Event
     :rtype: list
     """
     parameters = []
@@ -78,7 +81,7 @@ def _prepare_parameters(hook, event):
 
 class PluginManager:
     """
-    PluginManager is the core of CloudBot plugin loading.
+    PluginManager is the core of ObrBot plugin loading.
 
     PluginManager loads Plugins, and adds their Hooks to easy-access dicts/lists.
 
@@ -90,20 +93,20 @@ class PluginManager:
     - RegexPlugin loads a regex parameter, and executes on irc lines which match the regex
     - SievePlugin is a catch-all sieve, which all other plugins go through before being executed.
 
-    :type bot: cloudbot.bot.CloudBot
+    :type bot: obrbot.bot.ObrBot
     :type plugins: dict[str, Plugin]
     :type commands: dict[str, CommandHook]
     :type raw_triggers: dict[str, list[RawHook]]
     :type catch_all_triggers: list[RawHook]
-    :type event_type_hooks: dict[cloudbot.event.EventType, list[EventHook]]
+    :type event_type_hooks: dict[obrbot.event.EventType, list[EventHook]]
     :type regex_hooks: list[(re.__Regex, RegexHook)]
     :type sieves: list[SieveHook]
     """
 
     def __init__(self, bot):
         """
-        Creates a new PluginManager. You generally only need to do this from inside cloudbot.bot.CloudBot
-        :type bot: cloudbot.bot.CloudBot
+        Creates a new PluginManager. You generally only need to do this from inside obrbot.bot.ObrBot
+        :type bot: obrbot.bot.ObrBot
         """
         self.bot = bot
 
@@ -150,7 +153,7 @@ class PluginManager:
         try:
             plugin_module = importlib.import_module(module_name)
             # if this plugin was loaded before, reload it
-            if hasattr(plugin_module, "_cloudbot_loaded"):
+            if hasattr(plugin_module, "_plugins_loaded"):
                 importlib.reload(plugin_module)
         except Exception:
             logger.exception("Error loading {}:".format(file_name))
@@ -161,11 +164,11 @@ class PluginManager:
 
         # proceed to register hooks
 
-        # run onload hooks
-        for onload_hook in plugin.run_on_load:
-            success = yield from self.launch(onload_hook, Event(bot=self.bot, hook=onload_hook))
+        # run on_start hooks
+        for on_start_hook in plugin.on_start:
+            success = yield from self.launch(on_start_hook, Event(bot=self.bot, hook=on_start_hook))
             if not success:
-                logger.warning("Not registering hooks from plugin {}: onload hook errored".format(plugin.title))
+                logger.warning("Not registering hooks from plugin {}: on_start hook errored".format(plugin.title))
                 return
 
         self.plugins[plugin.file_name] = plugin
@@ -214,7 +217,7 @@ class PluginManager:
             self._log_hook(sieve_hook)
 
         # we don't need this anymore
-        del plugin.run_on_load
+        del plugin.on_start
 
     @asyncio.coroutine
     def _unload(self, path):
@@ -317,17 +320,17 @@ class PluginManager:
             plugin = Plugin(filepath, filename, title)
             self.plugins[filename] = plugin
 
-        # we don't allow onload or command hooks for internal. We don't have to check a valid type otherwise, because
+        # we don't allow on_start or command hooks for internal. We don't have to check a valid type otherwise, because
         # the _hook_name_to_hook[hook_type] call will raise a KeyError already.
-        if hook_type is HookType.onload:
-            raise ValueError("onload hooks not allowed")
+        if hook_type is HookType.on_start:
+            raise ValueError("on_start hooks not allowed")
         #
         if hook_type is HookType.command:
             raise ValueError("command hooks not allowed")
 
         # this might seem a little hacky, but I think it's a good design choice.
         # hook.py is in charge of argument processing, so it should process them here to
-        _processing_hook = cloudbot.hook._hook_name_to_hook[hook_type](function)
+        _processing_hook = obrbot.hook._hook_name_to_hook[hook_type](function)
         _processing_hook.add_hook(*args, **kwargs)
         # create the *Hook object
         hook = _hook_type_to_plugin[hook_type](plugin, _processing_hook)
@@ -365,8 +368,8 @@ class PluginManager:
 
         Returns False if the hook errored, True otherwise.
 
-        :type hook: cloudbot.plugin.Hook
-        :type event: cloudbot.event.Event
+        :type hook: obrbot.plugin.Hook
+        :type event: obrbot.event.Event
         :rtype: bool
         """
         parameters = _prepare_parameters(hook, event)
@@ -396,10 +399,10 @@ class PluginManager:
     @asyncio.coroutine
     def _sieve(self, sieve, event, hook):
         """
-        :type sieve: cloudbot.plugin.Hook
-        :type event: cloudbot.event.Event
-        :type hook: cloudbot.plugin.Hook
-        :rtype: cloudbot.event.Event
+        :type sieve: obrbot.plugin.Hook
+        :type event: obrbot.event.Event
+        :type hook: obrbot.plugin.Hook
+        :rtype: obrbot.event.Event
         """
         try:
             if sieve.threaded:
@@ -419,11 +422,11 @@ class PluginManager:
 
         Returns False if the hook didn't run successfully, and True if it ran successfully.
 
-        :type event: cloudbot.event.Event | cloudbot.event.CommandEvent
-        :type hook: cloudbot.plugin.Hook | cloudbot.plugin.CommandHook
+        :type event: obrbot.event.Event | obrbot.event.CommandEvent
+        :type hook: obrbot.plugin.Hook | obrbot.plugin.CommandHook
         :rtype: bool
         """
-        if hook.type is not HookType.onload:  # we don't need sieves on onload hooks.
+        if hook.type not in (HookType.on_start, HookType.on_stop):  # we don't need sieves on on_start or on_stop hooks.
             for sieve in self.bot.plugin_manager.sieves:
                 event = yield from self._sieve(sieve, event, hook)
                 if event is None:
@@ -473,6 +476,15 @@ class PluginManager:
         # Return the result
         return result
 
+    @asyncio.coroutine
+    def run_shutdown_hooks(self):
+        tasks = []
+        for plugin in self.plugins.values():
+            for hook in plugin.on_stop:
+                tasks.append(self.launch(hook, Event(bot=self.bot, hook=hook)))
+
+        yield from asyncio.gather(*tasks, loop=self.bot.loop)
+
 
 class Plugin:
     """
@@ -500,7 +512,7 @@ class Plugin:
         self.file_name = filename
         self.title = title
         if code is not None:
-            self.commands, self.regexes, self.raw_hooks, self.sieves, self.events, self.run_on_load = (
+            self.commands, self.regexes, self.raw_hooks, self.sieves, self.events, self.on_start, self.on_stop = (
                 find_hooks(self, code)
             )
 
@@ -568,7 +580,7 @@ class CommandHook(Hook):
     def __init__(self, plugin, cmd_hook):
         """
         :type plugin: Plugin
-        :type cmd_hook: cloudbot.util.hook._CommandHook
+        :type cmd_hook: obrbot.util.hook._CommandHook
         """
         self.auto_help = cmd_hook.kwargs.pop("autohelp", True)
 
@@ -596,7 +608,7 @@ class RegexHook(Hook):
     def __init__(self, plugin, regex_hook):
         """
         :type plugin: Plugin
-        :type regex_hook: cloudbot.util.hook._RegexHook
+        :type regex_hook: obrbot.util.hook._RegexHook
         """
         self.regexes = regex_hook.regexes
 
@@ -619,7 +631,7 @@ class RawHook(Hook):
     def __init__(self, plugin, irc_raw_hook):
         """
         :type plugin: Plugin
-        :type irc_raw_hook: cloudbot.util.hook._RawHook
+        :type irc_raw_hook: obrbot.util.hook._RawHook
         """
         super().__init__(plugin, irc_raw_hook)
 
@@ -641,7 +653,7 @@ class SieveHook(Hook):
     def __init__(self, plugin, sieve_hook):
         """
         :type plugin: Plugin
-        :type sieve_hook: cloudbot.util.hook._SieveHook
+        :type sieve_hook: obrbot.util.hook._SieveHook
         """
         super().__init__(plugin, sieve_hook)
 
@@ -654,14 +666,14 @@ class SieveHook(Hook):
 
 class EventHook(Hook):
     """
-    :type types: set[cloudbot.event.EventType]
+    :type types: set[obrbot.event.EventType]
     """
     type = HookType.event
 
     def __init__(self, plugin, event_hook):
         """
         :type plugin: Plugin
-        :type event_hook: cloudbot.util.hook._EventHook
+        :type event_hook: obrbot.util.hook._EventHook
         """
         super().__init__(plugin, event_hook)
 
@@ -675,21 +687,38 @@ class EventHook(Hook):
                                               self.plugin.file_name)
 
 
-class OnloadHook(Hook):
-    type = HookType.onload
+class OnStartHook(Hook):
+    type = HookType.on_start
 
     def __init__(self, plugin, on_load_hook):
         """
         :type plugin: Plugin
-        :type on_load_hook: cloudbot.util.hook._OnLoadHook
+        :type on_load_hook: obrbot.util.hook._OnStartHook
         """
         super().__init__(plugin, on_load_hook)
 
     def __repr__(self):
-        return "Onload[{}]".format(Hook.__repr__(self))
+        return "OnStart[{}]".format(Hook.__repr__(self))
 
     def __str__(self):
-        return "onload {} from {}".format(self.function_name, self.plugin.file_name)
+        return "on_start {} from {}".format(self.function_name, self.plugin.file_name)
+
+
+class OnStopHook(Hook):
+    type = HookType.on_stop
+
+    def __init__(self, plugin, on_load_hook):
+        """
+        :type plugin: Plugin
+        :type on_load_hook: obrbot.util.hook._OnStartHook
+        """
+        super().__init__(plugin, on_load_hook)
+
+    def __repr__(self):
+        return "OnStop[{}]".format(Hook.__repr__(self))
+
+    def __str__(self):
+        return "on_stop {} from {}".format(self.function_name, self.plugin.file_name)
 
 
 _hook_type_to_plugin = {
@@ -698,5 +727,6 @@ _hook_type_to_plugin = {
     HookType.irc_raw: RawHook,
     HookType.sieve: SieveHook,
     HookType.event: EventHook,
-    HookType.onload: OnloadHook
+    HookType.on_start: OnStartHook,
+    HookType.on_stop: OnStopHook,
 }

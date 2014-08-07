@@ -6,19 +6,19 @@ import logging
 
 from watchdog.observers import Observer
 
-logger = logging.getLogger("cloudbot")
+logger = logging.getLogger("obrbot")
 
 
 class Config(dict):
     """
     :type filename: str
     :type path: str
-    :type bot: cloudbot.bot.CloudBot
+    :type bot: obrbot.bot.ObrBot
     """
 
     def __init__(self, bot, *args, **kwargs):
         """
-        :type bot: cloudbot.bot.CloudBot
+        :type bot: obrbot.bot.ObrBot
         :type args: list
         :type kwargs: dict
         """
